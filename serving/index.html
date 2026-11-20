@@ -18,7 +18,7 @@
         <link rel="prev" href="../routing/">
       
       
-        <link rel="next" href="../operations/">
+        <link rel="next" href="../tenancy/">
       
       
         
@@ -535,6 +535,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tenants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tenants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#operations" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -549,6 +560,33 @@
   
 </nav>
       
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tenancy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-tenancy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -683,6 +721,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tenants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tenants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#operations" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -797,6 +846,9 @@ configuration details are logged on the server, not returned to clients.</p>
   interface without keys.</li>
 <li>Keep keys in environment variables (<code>${PORTAL_KEY}</code>); they are never written to disk.</li>
 </ul>
+<h2 id="tenants">Tenants<a class="headerlink" href="#tenants" title="Permanent link">&para;</a></h2>
+<p>With <code>tenancy</code> enabled, requests carry <code>"tenant": "acme"</code>, or the API key fixes it
+(<code>api_keys[].tenant</code>); see <a href="../tenancy/">Multi-tenancy</a>.</p>
 <h2 id="operations">Operations<a class="headerlink" href="#operations" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Traces in responses are off unless <code>serve.allow_traces: true</code>. Server-side tracing

@@ -515,6 +515,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tenancy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tenancy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#api-key-each-entry-of-serveapi_keys" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -662,6 +673,33 @@
     
   
     Serving
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tenancy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-tenancy
   
 
     
@@ -892,6 +930,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tenancy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tenancy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#api-key-each-entry-of-serveapi_keys" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1041,6 +1090,12 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 <td>HTTP API settings.</td>
 </tr>
 <tr>
+<td><code>tenancy</code></td>
+<td>TenancyConfig</td>
+<td>see section</td>
+<td>Multi-tenancy.</td>
+</tr>
+<tr>
 <td><code>index_dir</code></td>
 <td>str</td>
 <td><code>'.ragpick/index'</code></td>
@@ -1083,6 +1138,18 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 <td>bool</td>
 <td><code>False</code></td>
 <td>Documents are long and structured (manuals, policies, contracts).</td>
+</tr>
+<tr>
+<td><code>complex_questions</code></td>
+<td>bool</td>
+<td><code>False</code></td>
+<td>Questions need several lookups (comparisons, multi-part questions).</td>
+</tr>
+<tr>
+<td><code>multi_tenant</code></td>
+<td>bool</td>
+<td><code>False</code></td>
+<td>Several customers' data must be kept in separate indexes.</td>
 </tr>
 <tr>
 <td><code>multi_hop</code></td>
@@ -1396,6 +1463,32 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 </tr>
 </tbody>
 </table>
+<h2 id="tenancy"><code>tenancy</code><a class="headerlink" href="#tenancy" title="Permanent link">&para;</a></h2>
+<p>Per-tenant indexes within one pipeline.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>bool</td>
+<td><code>False</code></td>
+<td>Each tenant gets an isolated index under <code>&lt;index_dir&gt;/tenants/&lt;id&gt;</code>.</td>
+</tr>
+<tr>
+<td><code>max_loaded</code></td>
+<td>int</td>
+<td><code>32</code></td>
+<td>Tenant indexes kept in memory (LRU).</td>
+</tr>
+</tbody>
+</table>
 <h2 id="api-key-each-entry-of-serveapi_keys">API key (each entry of <code>serve.api_keys</code>)<a class="headerlink" href="#api-key-each-entry-of-serveapi_keys" title="Permanent link">&para;</a></h2>
 <p>An API key for <code>ragpick serve</code> and the groups its holder may act as.</p>
 <table>
@@ -1425,6 +1518,12 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 <td>list[str] | null</td>
 <td><code>None</code></td>
 <td>Groups this key may query as (<code>null</code> = any groups the request names).</td>
+</tr>
+<tr>
+<td><code>tenant</code></td>
+<td>str | null</td>
+<td><code>None</code></td>
+<td>Bind the key to one tenant (<code>null</code> = the request picks the tenant).</td>
 </tr>
 </tbody>
 </table>

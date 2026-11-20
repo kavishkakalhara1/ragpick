@@ -433,6 +433,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#agentic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agentic
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sql" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -585,6 +596,33 @@
     
   
     Serving
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tenancy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-tenancy
   
 
     
@@ -760,6 +798,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#agentic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        agentic
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sql" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -835,12 +884,17 @@
 <tr>
 <td><code>graph</code></td>
 <td>stable</td>
-<td>multi-hop questions across documents (GraphRAG local search)</td>
+<td>multi-hop and "main themes" questions (GraphRAG local + global search)</td>
 </tr>
 <tr>
 <td><code>agentic</code></td>
+<td>stable</td>
+<td>multi-part and comparison questions needing several lookups</td>
+</tr>
+<tr>
+<td><code>multimodal</code></td>
 <td>planned</td>
-<td>complex questions needing several lookups or tools</td>
+<td>images, charts and scanned pages inside documents</td>
 </tr>
 <tr>
 <td><code>corrective</code></td>
@@ -950,10 +1004,38 @@ spelled out:</p>
   included only if at least one chunk <em>visible to the caller</em> supports it.</li>
 <li><strong>Evaluation.</strong> The facts context is marked <code>synthetic</code> and doesn't count in retrieval
   metrics.</li>
-<li><strong>Scope.</strong> This is GraphRAG <em>local</em> search. Corpus-wide "what are the main themes?"
-  questions (community summaries) are on the roadmap.</li>
+<li><strong>Global search.</strong> After ingest, related entities are grouped into communities
+  (label propagation), and each community gets a short summary: LLM-written, or a
+  template offline. Unchanged communities keep their summaries, so re-ingesting doesn't
+  re-pay for them. Questions like "what are the main themes?", "give an overview of …" or
+  "summarise …" (<code>mode: auto</code>) are answered from the most relevant summaries instead of
+  individual chunks. <code>mode: global</code> / <code>local</code> forces one or the other. A summary is
+  shown only if the caller can see <strong>every</strong> chunk it was built from, so summaries never
+  mix in restricted content.</li>
 </ul>
 <p>Set <code>requirements.multi_hop: true</code> and the selector recommends it.</p>
+<h2 id="agentic">agentic<a class="headerlink" href="#agentic" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>question → search ─┐
+           plan ───┼→ search (sub-question / follow-up) ─┐
+           plan ───┴→ … up to max_steps ──────────────────┴→ RRF over all searches → generator
+</code></pre></div>
+<p>"How do I reset my password <strong>and</strong> how much does Lumen Plus cost?" needs two lookups.
+The agentic retriever searches for the question, then lets the LLM decide whether to run
+another search (and with what query) or finish, up to <code>max_steps</code>. It stops early when
+searches stop finding anything new. All result lists are fused with Reciprocal Rank
+Fusion.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">blueprint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agentic</span>
+<span class="nt">components</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">retriever</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">base</span><span class="p">:</span><span class="w"> </span><span class="nv">hybrid</span><span class="p p-Indicator">,</span><span class="nt"> max_steps</span><span class="p">:</span><span class="w"> </span><span class="nv">4</span><span class="p p-Indicator">,</span><span class="nt"> per_search_k</span><span class="p">:</span><span class="w"> </span><span class="nv">4</span><span class="p p-Indicator">,</span><span class="nt"> planner</span><span class="p">:</span><span class="w"> </span><span class="nv">auto</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">generator</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="nv">openai</span><span class="p p-Indicator">,</span><span class="nt"> params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="nv">gpt-4o-mini</span><span class="p p-Indicator">}}</span><span class="w">   </span><span class="c1"># enables the LLM planner</span>
+</code></pre></div>
+<p>Offline (or with <code>planner: decompose</code>), multi-part questions are split on "and", "vs",
+"compared to", <code>;</code> and sentence breaks, and each part is searched. Every search goes
+through the base retriever (<code>hybrid</code>, <code>vector</code>, <code>parent_child</code> or <code>graph</code>) with the caller's
+filters, so access control holds. <code>ragpick query --trace</code> shows each <code>agent_plan</code> and
+<code>agent_search</code> step. Set <code>requirements.complex_questions: true</code> and the selector
+recommends it.</p>
 <h2 id="sql">sql<a class="headerlink" href="#sql" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>question + schema → LLM writes one SELECT → SQLite (read-only) → result rows → generator
 </code></pre></div>
