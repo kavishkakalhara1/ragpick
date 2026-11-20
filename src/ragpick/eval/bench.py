@@ -42,6 +42,13 @@ class BenchResult(BaseModel):
         return next(r for r in self.reports if r.label == blueprint)
 
 
+def default_bench_blueprints() -> list[str]:
+    """Stable blueprints that answer from documents (``sql`` needs tables and an LLM)."""
+    return [
+        b.name for b in list_blueprints(include_planned=False) if b.metadata.data == "documents"
+    ]
+
+
 def candidate_raw_configs(
     base: Mapping[str, Any] | None, blueprints: Sequence[str], top_k: int | None = None
 ) -> dict[str, dict[str, Any]]:
@@ -104,9 +111,7 @@ def run_bench(
     """
     if metric not in RANKING_METRICS:
         raise ConfigError(f"Unknown metric '{metric}'. Choose one of: {', '.join(RANKING_METRICS)}")
-    names = (
-        list(blueprints) if blueprints else [b.name for b in list_blueprints(include_planned=False)]
-    )
+    names = list(blueprints) if blueprints else default_bench_blueprints()
     for name in names:
         if not get_blueprint(name).is_stable:
             raise BlueprintError(f"Blueprint '{name}' is planned and cannot be benchmarked yet")

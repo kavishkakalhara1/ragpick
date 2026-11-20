@@ -6,6 +6,34 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-20
+
+### Added
+
+- `corrective` blueprint (stable): `CorrectiveRetriever` grades retrieved contexts (LLM,
+  or lexical offline), rewrites the query and retries when too few are relevant, and
+  returns nothing (so the answer is "I don't know") when retrieval stays poor. Works over
+  `hybrid`, `vector` or `parent_child` base retrieval.
+- `sql` blueprint (stable): text-to-SQL over CSV files (loaded into SQLite at ingest) or an
+  existing SQLite database. Read-only connection, authorizer allow-list, single-`SELECT`
+  validation, timeout, row cap, retry with the error message, and table-level access
+  control (`table_groups`) enforced by SQLite. New `csv` loader and `none` chunker.
+- Tracing: nested, timed spans for every query stage (`ragpick query --trace`,
+  `Pipeline.query(trace=True)`, `tracing:` config), with `jsonl` and `console` exporters
+  and a `trace_exporter` plugin kind.
+- Caching: SQLite-backed cache for embeddings, answers and LLM completions, keyed by
+  component fingerprints (`cache:` config, `ragpick cache stats|clear`).
+- `requirements.strict_grounding` and selector rules for `corrective` and `sql`
+  (mixed-data and SQL access-control warnings).
+- Pipeline injects `generator` and `index_dir` into components; optional
+  `DocumentIndexer` protocol for components that index raw documents at ingest.
+- `Usage.cached`, `Answer.trace`, and the `"sql"` retrieval source.
+
+### Changed
+
+- `ragpick bench` compares document blueprints by default (`sql` needs tables and an LLM;
+  include it explicitly with `-b sql`).
+
 ## [0.2.0] - 2026-11-20
 
 ### Added
@@ -50,6 +78,7 @@ All notable changes to this project are documented here. The format follows
   relevance, latency percentiles, tokens and estimated cost; JSON/CSV output.
 - CLI: `init`, `recommend`, `blueprints`, `ingest`, `query`, `eval`, `validate`.
 
-[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kavishkakalhara1/ragpick/releases/tag/v0.1.0

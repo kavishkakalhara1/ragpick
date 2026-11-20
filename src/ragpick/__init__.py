@@ -19,7 +19,7 @@ from ragpick.models import Answer, Chunk, Document, RetrievedChunk, Usage
 from ragpick.pipeline import Pipeline
 from ragpick.registry import register, registry
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "Answer",

@@ -1,10 +1,27 @@
 metadata:
   name: sql
   description: >-
-    Text-to-SQL over structured data: the model writes a query, ragpick runs it
-    read-only and answers from the result rows.
+    Text-to-SQL: the LLM writes one read-only SELECT over your tables (CSV files
+    or an existing SQLite database), ragpick runs it safely and the answer is
+    generated from the result rows, with the SQL cited.
   best_for:
-    - databases, CSV exports, analytics questions ("how many", "top 10")
+    - structured data (CSV exports, SQLite databases)
+    - analytics questions (counts, totals, top-N, filters)
   tradeoffs:
-    - needs schema descriptions and strict read-only sandboxing
-  status: planned
+    - needs a real LLM (the fake generator cannot write SQL)
+    - table-level access control only (no row-level security)
+  status: stable
+  data: structured
+defaults:
+  components:
+    loader: {type: csv, params: {glob: "**/*.csv"}}
+    chunker: {type: none}
+    embedder: {type: fake, params: {dimension: 8}}
+    store: {type: memory}
+    retriever:
+      type: sql
+      params: {max_rows: 50, sample_rows: 3, timeout_s: 5, max_attempts: 2}
+    reranker: {type: none}
+    generator: {type: fake}   # replace with a real LLM: the fake generator cannot write SQL
+  query:
+    top_k: 1

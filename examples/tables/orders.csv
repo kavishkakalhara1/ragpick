@@ -1,0 +1,13 @@
+order_id,order_date,sku,quantity,country,status
+1001,2026-09-02,LM-200,1,US,delivered
+1002,2026-09-03,LM-300,2,US,delivered
+1003,2026-09-05,LS-10,3,CA,delivered
+1004,2026-09-11,LM-300,1,GB,returned
+1005,2026-09-18,LP-1,1,US,delivered
+1006,2026-10-01,LM-200,2,DE,delivered
+1007,2026-10-04,LM-300,1,US,shipped
+1008,2026-10-09,LS-10,2,US,delivered
+1009,2026-10-15,LM-300,3,CA,delivered
+1010,2026-10-21,LP-1,4,GB,delivered
+1011,2026-11-02,LM-200,1,US,shipped
+1012,2026-11-05,LM-300,1,DE,processing

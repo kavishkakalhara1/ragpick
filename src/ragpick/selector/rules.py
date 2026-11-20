@@ -26,7 +26,9 @@ from ragpick.config import Requirements
 from ragpick.config import deep_merge as _deep_merge
 from ragpick.registry import Registry, registry
 
-STRUCTURED_TYPES = frozenset({"sql", "csv", "database", "structured", "tables", "spreadsheet"})
+STRUCTURED_TYPES = frozenset(
+    {"sql", "sqlite", "csv", "database", "structured", "tables", "spreadsheet"}
+)
 DOCUMENT_TYPES = frozenset({"markdown", "md", "text", "txt", "pdf"})
 FILTERING_STORES_HINT = "memory, qdrant"
 
@@ -101,7 +103,20 @@ RULES: list[Rule] = [
         fallback="hybrid",
         reason=(
             "Structured data ({structured}) is best answered with text-to-SQL: aggregations "
-            "and filters over rows are not a retrieval problem."
+            "and filters over rows are not a retrieval problem. The query runs read-only, "
+            "with a timeout and a row cap."
+        ),
+        alternatives=("hybrid",),
+    ),
+    Rule(
+        id="strict_grounding",
+        when=lambda c: _r(c).strict_grounding,
+        blueprint="corrective",
+        priority=70,
+        reason=(
+            "Strict grounding: every retrieved context is graded for relevance; poor "
+            "retrieval triggers a rewritten query, and if that also fails the answer is "
+            '"I don\'t know" rather than a guess.'
         ),
         alternatives=("hybrid",),
     ),
@@ -160,6 +175,44 @@ RULES: list[Rule] = [
             "typically adds 50-300 ms per query."
         ),
         overrides={"reranker": {"type": "none"}},
+    ),
+    Rule(
+        id="corrective_long_documents",
+        when=lambda c: _r(c).strict_grounding and _r(c).long_documents,
+        reason=(
+            "Long documents: the corrective retriever searches with parent_child "
+            "(small chunks for search, whole sections as context)."
+        ),
+        overrides={
+            "chunker": {"type": "parent_child"},
+            "retriever": {"type": "corrective", "params": {"base": "parent_child"}},
+        },
+    ),
+    Rule(
+        id="corrective_low_latency",
+        when=lambda c: _r(c).strict_grounding and _r(c).latency == "low",
+        warning=(
+            "corrective adds an LLM grading call per query (two more when it retries); "
+            "check latency with `ragpick bench` before committing to it."
+        ),
+    ),
+    Rule(
+        id="mixed_structured_and_documents",
+        when=lambda c: (
+            bool(c.data_types & STRUCTURED_TYPES) and bool(c.data_types & DOCUMENT_TYPES)
+        ),
+        warning=(
+            "The sql blueprint answers from tables only. Run a second pipeline (e.g. "
+            "hybrid) for your documents; automatic routing between them is planned."
+        ),
+    ),
+    Rule(
+        id="sql_access_control",
+        when=lambda c: bool(c.data_types & STRUCTURED_TYPES) and _r(c).access_control,
+        warning=(
+            "sql supports table-level access control (retriever param `table_groups`), "
+            "not row-level security; split restricted rows into their own tables."
+        ),
     ),
     Rule(
         id="long_documents_low_latency",

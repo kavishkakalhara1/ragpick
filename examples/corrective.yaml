@@ -1,0 +1,12 @@
+# Offline example: corrective blueprint (grade → retry → "I don't know").
+# With the fake generator the grader is lexical; with a real LLM (openai, ollama, ...)
+# grader: auto switches to LLM grading and query rewriting.
+version: 1
+name: corrective
+blueprint: corrective
+data: data
+index_dir: .ragpick/corrective
+requirements:
+  strict_grounding: true
+query:
+  top_k: 3

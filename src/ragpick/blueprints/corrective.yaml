@@ -1,10 +1,27 @@
 metadata:
   name: corrective
   description: >-
-    Corrective RAG: grade retrieved contexts, rewrite the query or fall back to
-    another source when retrieval quality is low.
+    Corrective RAG: grade every retrieved context for relevance; if too few pass,
+    rewrite the query and retrieve again; if retrieval is still poor, answer
+    "I don't know" instead of guessing.
   best_for:
-    - noisy corpora where retrieval often misses
+    - noisy or uneven corpora where retrieval often misses
+    - domains where a wrong answer costs more than no answer (support, legal, medical)
   tradeoffs:
-    - extra LLM calls per query
-  status: planned
+    - one extra LLM call per query for grading, two more when it retries
+    - more "I don't know" answers when the corpus genuinely lacks the information
+  status: stable
+defaults:
+  components:
+    loader: {type: directory, params: {glob: "**/*"}}
+    chunker: {type: recursive, params: {chunk_size: 800, overlap: 100}}
+    embedder: {type: fake, params: {dimension: 256}}
+    store: {type: memory}
+    keyword_index: {type: bm25, params: {k1: 1.5, b: 0.75}}
+    retriever:
+      type: corrective
+      params: {k: 5, base: hybrid, grader: auto, min_relevant: 1, rewrite: true, on_failure: empty}
+    reranker: {type: none}
+    generator: {type: fake}
+  query:
+    top_k: 5

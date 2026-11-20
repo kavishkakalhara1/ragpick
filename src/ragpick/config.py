@@ -62,6 +62,10 @@ class Requirements(_Strict):
         False,
         description="Documents are long and structured (manuals, policies, contracts).",
     )
+    strict_grounding: bool = Field(
+        False,
+        description='Wrong answers are costly: prefer "I don\'t know" over guessing.',
+    )
     latency: Latency = Field("normal", description="`low` disables expensive stages.")
     needs_citations: bool = Field(True, description="Answers must cite their sources.")
     access_control: bool = Field(
@@ -111,6 +115,26 @@ class EvalConfig(_Strict):
     )
 
 
+class TracingConfig(_Strict):
+    """Query tracing (nested, timed spans per stage)."""
+
+    enabled: bool = Field(False, description="Record a trace for every query.")
+    exporters: list[ComponentSpec] = Field(
+        default_factory=list,
+        description="Where traces go: `jsonl` (params: path) and/or `console`.",
+    )
+
+
+class CacheConfig(_Strict):
+    """Persistent cache for embeddings and LLM calls."""
+
+    enabled: bool = Field(False, description="Turn caching on.")
+    dir: str = Field(".ragpick/cache", description="Cache directory.")
+    embeddings: bool = Field(True, description="Cache embeddings.")
+    generations: bool = Field(True, description="Cache answers and LLM completions.")
+    ttl_seconds: float | None = Field(None, gt=0, description="Expire entries after this age.")
+
+
 class RagConfig(_Strict):
     """Top-level schema of ``rag.yaml``."""
 
@@ -128,6 +152,8 @@ class RagConfig(_Strict):
     )
     query: QueryConfig = Field(default_factory=QueryConfig, description="Query-time settings.")
     eval: EvalConfig = Field(default_factory=EvalConfig, description="Evaluation settings.")
+    tracing: TracingConfig = Field(default_factory=TracingConfig, description="Query tracing.")
+    cache: CacheConfig = Field(default_factory=CacheConfig, description="Caching.")
     index_dir: str = Field(".ragpick/index", description="Where indexes are persisted.")
 
     _base_dir: Path = PrivateAttr(default_factory=Path.cwd)

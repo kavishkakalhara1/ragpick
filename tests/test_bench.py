@@ -78,7 +78,7 @@ def test_rank_by_metric_then_latency() -> None:
 
 def test_run_bench_offline() -> None:
     result = run_bench(DATASET, DATA)
-    assert set(result.ranking) == {"naive", "hybrid", "parent_child"}
+    assert set(result.ranking) == {"naive", "hybrid", "parent_child", "corrective"}  # no sql
     assert result.winner == result.ranking[0]
     assert result.metric == "mrr"
     best = result.report_for(result.winner).metrics["mrr"] or 0

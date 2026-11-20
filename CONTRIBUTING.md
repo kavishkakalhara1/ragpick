@@ -67,7 +67,11 @@ Preview the docs with `mkdocs serve`.
 
 - **Loaders**: HTML, DOCX, Notion/Confluence exports, CSV-as-documents.
 - **Stores**: pgvector, Chroma, LanceDB, Elasticsearch/OpenSearch (with filter push-down).
-- **Blueprints**: `corrective` and `sql` are next on the roadmap.
+- **Blueprints**: `graph` and `agentic` are next on the roadmap; routing between `sql`
+  and document pipelines is a good intermediate step.
+- **SQL**: Postgres/MySQL backends for the `sql` retriever (read-only roles + the same
+  validation).
+- **Trace exporters**: OpenTelemetry, Langfuse, Phoenix.
 - **Embedders and generators**: Cohere, Voyage, Bedrock, Azure OpenAI (or use them today
   through the LangChain / LlamaIndex adapters).
 - **Eval**: more metrics (context recall vs `ground_truth`, citation accuracy).

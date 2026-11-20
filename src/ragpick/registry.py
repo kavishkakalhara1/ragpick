@@ -45,6 +45,7 @@ KINDS: tuple[str, ...] = (
     "retriever",
     "reranker",
     "generator",
+    "trace_exporter",
 )
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -97,6 +98,7 @@ class Registry:
             self._builtins_loaded = True
             importlib.import_module("ragpick.components")
             importlib.import_module("ragpick.adapters")
+            importlib.import_module("ragpick.tracing")
         if not self._plugins_loaded:
             self.load_plugins()
 

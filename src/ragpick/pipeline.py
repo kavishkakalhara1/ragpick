@@ -11,18 +11,21 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from ragpick import interfaces
+from ragpick import interfaces, tracing
+from ragpick.cache import Cache, CachedEmbedder, wrap_generator
 from ragpick.config import ComponentSpec, RagConfig, build_config, load_config
 from ragpick.errors import ConfigError, IndexNotFoundError
 from ragpick.filters import acl_filter
 from ragpick.models import Answer, RetrievedChunk
 from ragpick.registry import Registry, registry
+from ragpick.tracing import set_attributes, span
 
 logger = logging.getLogger(__name__)
 
 #: Dependencies the pipeline injects into retrievers (and any other component)
-#: whose constructor declares a parameter with one of these names.
-INJECTABLE = ("embedder", "store", "keyword_index")
+#: whose constructor declares a parameter with one of these names. ``index_dir`` is
+#: the absolute index directory (a :class:`~pathlib.Path`).
+INJECTABLE = ("embedder", "store", "keyword_index", "generator", "index_dir")
 
 _PROTOCOLS: dict[str, type] = {
     "loader": interfaces.Loader,
@@ -39,6 +42,10 @@ MANIFEST = "ragpick.json"
 
 #: ``progress(stage, done, total)`` callback used by :meth:`Pipeline.ingest`.
 ProgressCallback = Callable[[str, int, int], None]
+
+
+def _fingerprint(spec: ComponentSpec) -> dict[str, Any]:
+    return {"type": spec.type, "params": spec.params}
 
 
 class IngestStats(BaseModel):
@@ -60,9 +67,9 @@ class Pipeline:
         answer = p.query("How do I reset my password?", groups=["support"])
 
     Components are created from the config through the :data:`~ragpick.registry`.
-    Retrievers receive ``embedder``, ``store`` and ``keyword_index`` by constructor
-    parameter name. Pass ``components={"generator": my_generator}`` to inject
-    ready-made instances instead.
+    Components receive ``embedder``, ``store``, ``keyword_index``, ``generator`` and
+    ``index_dir`` by constructor parameter name. Pass
+    ``components={"generator": my_generator}`` to inject ready-made instances instead.
     """
 
     def __init__(
@@ -77,9 +84,16 @@ class Pipeline:
         self._injected = dict(components or {})
         self._loaded = False
         c = config.components
+        self.cache: Cache | None = None
+        if config.cache.enabled:
+            self.cache = Cache(
+                config.resolve_path(config.cache.dir) / "cache.sqlite", config.cache.ttl_seconds
+            )
         self.loader: interfaces.Loader = self._build("loader", c.loader)
         self.chunker: interfaces.Chunker = self._build("chunker", c.chunker)
         self.embedder: interfaces.Embedder = self._build("embedder", c.embedder)
+        if self.cache is not None and config.cache.embeddings:
+            self.embedder = CachedEmbedder(self.embedder, self.cache, _fingerprint(c.embedder))
         self.store: interfaces.VectorStore = self._build("store", c.store)
         self.keyword_index: interfaces.KeywordIndex | None = None
         retriever_needs = self._registry.accepted_params("retriever", c.retriever.type)
@@ -93,11 +107,27 @@ class Pipeline:
             keyword_spec = ComponentSpec(type="bm25")
         if keyword_spec is not None or "keyword_index" in self._injected:
             self.keyword_index = self._build("keyword_index", keyword_spec)
-        self.retriever: interfaces.Retriever = self._build("retriever", c.retriever)
-        self.reranker: interfaces.Reranker = self._build("reranker", c.reranker)
         self.generator: interfaces.Generator = self._build("generator", c.generator)
         if c.generator.type == "fake" and "generator" not in self._injected:
             logger.info("Using the fake generator: answers are extractive placeholders")
+        if self.cache is not None and config.cache.generations:
+            fingerprint = {
+                **_fingerprint(c.generator),
+                "prompt": getattr(self.generator, "system_prompt", None),
+            }
+            self.generator = wrap_generator(self.generator, self.cache, fingerprint)
+        self.retriever: interfaces.Retriever = self._build("retriever", c.retriever)
+        self.reranker: interfaces.Reranker = self._build("reranker", c.reranker)
+        self.exporters: list[Any] = [
+            self._registry.create("trace_exporter", spec.type, **self._exporter_params(spec))
+            for spec in config.tracing.exporters
+        ]
+
+    def _exporter_params(self, spec: ComponentSpec) -> dict[str, Any]:
+        params = dict(spec.params)
+        if isinstance(params.get("path"), str):
+            params["path"] = str(self.config.resolve_path(params["path"]))
+        return params
 
     # ------------------------------------------------------------------ builders
     @classmethod
@@ -190,8 +220,12 @@ class Pipeline:
         self._loaded = True
 
     def _ensure_loaded(self) -> None:
-        if not self._loaded:
-            self.load()
+        if self._loaded:
+            return
+        if not self.has_index() and getattr(self.retriever, "requires_ingest", True) is False:
+            self._loaded = True  # e.g. SQL over an existing database: nothing to load
+            return
+        self.load()
 
     # ------------------------------------------------------------------ ingest
     def ingest(
@@ -232,6 +266,10 @@ class Pipeline:
             if progress:
                 progress("embed", min(i + batch_size, total), total)
 
+        for component in (self.retriever, self.reranker, self.generator):
+            if isinstance(component, interfaces.DocumentIndexer):
+                component.index_documents(docs)
+
         doc_ids = [d.id for d in docs]
         self.store.delete(doc_ids)
         self.store.add(chunks)
@@ -271,8 +309,14 @@ class Pipeline:
         self._ensure_loaded()
         top_k = top_k or self.config.query.top_k
         combined = acl_filter(groups, filters)
-        candidates = self.retriever.retrieve(question, self._retrieval_k(top_k), combined)
-        return self.reranker.rerank(question, candidates, top_k)
+        k = self._retrieval_k(top_k)
+        with span("retrieve", retriever=self.config.components.retriever.type, k=k):
+            candidates = self.retriever.retrieve(question, k, combined)
+            set_attributes(results=len(candidates))
+        with span("rerank", reranker=self.config.components.reranker.type, top_n=top_k):
+            reranked = self.reranker.rerank(question, candidates, top_k)
+            set_attributes(results=len(reranked))
+        return reranked
 
     def query(
         self,
@@ -281,13 +325,45 @@ class Pipeline:
         groups: list[str] | None = None,
         filters: dict[str, Any] | None = None,
         top_k: int | None = None,
+        trace: bool | None = None,
     ) -> Answer:
         """Answer ``question`` from the index.
 
         ``answer.usage.latency_ms`` covers the whole query (retrieval + generation).
+        With ``trace=True`` (or ``tracing.enabled`` in the config) ``answer.trace``
+        holds the timed spans of every stage, and configured exporters receive it.
         """
+        if not (self.config.tracing.enabled if trace is None else trace):
+            return self._query(question, groups, filters, top_k)
+        with tracing.trace(
+            "query", groups=len(groups or []), blueprint=self.config.blueprint
+        ) as root:
+            answer = self._query(question, groups, filters, top_k)
+        answer.trace = root
+        for exporter in self.exporters:
+            try:
+                exporter.export(root)
+            except Exception as exc:  # exporters must never break queries
+                logger.warning("Trace exporter %s failed: %s", type(exporter).__name__, exc)
+        return answer
+
+    def _query(
+        self,
+        question: str,
+        groups: list[str] | None,
+        filters: dict[str, Any] | None,
+        top_k: int | None,
+    ) -> Answer:
         start = time.perf_counter()
         contexts = self.retrieve(question, groups=groups, filters=filters, top_k=top_k)
-        answer = self.generator.generate(question, contexts)
+        with span("generate", generator=self.config.components.generator.type) as s:
+            answer = self.generator.generate(question, contexts)
+            if s is not None:
+                s.attributes.update(
+                    prompt_tokens=answer.usage.prompt_tokens,
+                    completion_tokens=answer.usage.completion_tokens,
+                    cached=answer.usage.cached,
+                    citations=len(answer.citations),
+                )
         answer.usage.latency_ms = (time.perf_counter() - start) * 1000
         return answer

@@ -1,0 +1,23 @@
+# Text-to-SQL over the CSV files in tables/ (needs a real LLM).
+#   pip install "ragpick[openai]" && export OPENAI_API_KEY=...
+#   ragpick ingest --config examples/sql.yaml
+#   ragpick query "Which product sold the most units in October 2026?" --config examples/sql.yaml --trace
+#   ragpick query "What is the average salary?" --config examples/sql.yaml --groups hr
+version: 1
+name: lumen-analytics
+blueprint: sql
+data: tables
+index_dir: .ragpick/sql
+requirements:
+  data_types: [csv]
+  access_control: true
+components:
+  retriever:
+    params:
+      table_groups: {salaries: [hr]}     # only the hr group can query salaries
+  generator: {type: openai, params: {model: gpt-4o-mini, temperature: 0}}
+tracing:
+  enabled: true
+  exporters: [{type: jsonl, params: {path: .ragpick/traces.jsonl}}]
+cache:
+  enabled: true

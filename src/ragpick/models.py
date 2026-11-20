@@ -6,7 +6,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-RetrievalSource = Literal["vector", "keyword", "fused"]
+from ragpick.tracing import Span
+
+RetrievalSource = Literal["vector", "keyword", "fused", "sql"]
 
 
 class Document(BaseModel):
@@ -45,6 +47,7 @@ class Usage(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     latency_ms: float = 0.0
+    cached: bool = False
 
     @property
     def total_tokens(self) -> int:
@@ -56,12 +59,14 @@ class Answer(BaseModel):
     """The result of a RAG query.
 
     ``citations`` holds the IDs of the chunks the model cited, in citation order.
+    ``trace`` is set when tracing is enabled (see :mod:`ragpick.tracing`).
     """
 
     text: str
     citations: list[str] = Field(default_factory=list)
     contexts: list[RetrievedChunk] = Field(default_factory=list)
     usage: Usage = Field(default_factory=Usage)
+    trace: Span | None = None
 
 
 class Completion(BaseModel):

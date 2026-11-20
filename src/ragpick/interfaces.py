@@ -128,6 +128,20 @@ class Generator(Protocol):
 
 
 @runtime_checkable
+class DocumentIndexer(Protocol):
+    """Optional: a component that indexes raw documents itself during ingest.
+
+    The pipeline calls :meth:`index_documents` with every loaded document (before
+    chunking) for its retriever, reranker and generator. The SQL retriever uses this
+    to load CSV files into its database.
+    """
+
+    def index_documents(self, docs: list[Document]) -> None:
+        """Index ``docs`` (called once per ingest)."""
+        ...
+
+
+@runtime_checkable
 class TextCompleter(Protocol):
     """Raw prompt-in, text-out model access (used by LLM judges in evaluation).
 

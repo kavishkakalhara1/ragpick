@@ -24,6 +24,8 @@ class BlueprintMeta(BaseModel):
     best_for: list[str] = Field(default_factory=list)
     tradeoffs: list[str] = Field(default_factory=list)
     status: Literal["stable", "planned"] = "stable"
+    data: Literal["documents", "structured"] = "documents"
+    """What the blueprint answers from; ``ragpick bench`` compares ``documents`` ones."""
 
 
 class Blueprint(BaseModel):
@@ -43,7 +45,7 @@ class Blueprint(BaseModel):
         return self.metadata.status == "stable"
 
 
-_ORDER = ["naive", "hybrid", "parent_child", "sql", "graph", "agentic", "corrective"]
+_ORDER = ["naive", "hybrid", "parent_child", "corrective", "sql", "graph", "agentic"]
 
 
 @cache

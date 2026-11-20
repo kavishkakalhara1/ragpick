@@ -60,6 +60,8 @@ ragpick bench eval.jsonl --data ./docs --config rag.yaml --metric mrr --write be
 - `--metric` picks the winner: `hit_rate@k`, `mrr` (default), `precision@k`, or, with a
   judge, `faithfulness` / `answer_relevance`. Ties go to the lower median latency.
 - `-b NAME` (repeatable) limits the candidates; `--top-k` overrides k for all of them.
+  By default only document blueprints are compared; `sql` answers from tables and
+  needs a real LLM, so include it explicitly (`-b sql`) with a table dataset.
 - `--write best.yaml` saves the winner's config: your providers plus `blueprint: <winner>`.
   Secrets stay as `${ENV_VAR}` references.
 - Each candidate gets a temporary index; your real indexes are never touched.
@@ -111,6 +113,9 @@ eval:
 ```
 
 ## Tips
+
+- If `cache` is enabled, repeated runs reuse answers: costs drop to zero and latencies to
+  near zero. Disable the cache when measuring latency.
 
 - 30–100 representative questions catch most regressions. Include the exact-term queries
   your users really send (codes, IDs), plus some that should return "I don't know".

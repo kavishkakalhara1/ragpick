@@ -135,7 +135,11 @@ class FakeGenerator(LLMGenerator):
     Picks up to ``max_sentences`` context sentences with the highest word overlap
     with the question and cites them. Answers "I don't know." when nothing overlaps.
     :meth:`complete` returns the fixed ``response`` string (handy as a fake judge).
+    ``is_fake`` tells components that need a real LLM (SQL, LLM grading) to fall back
+    or explain.
     """
+
+    is_fake = True
 
     def __init__(
         self,

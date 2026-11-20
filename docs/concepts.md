@@ -7,12 +7,12 @@ A pipeline is made of small, swappable components. Each one is a `typing.Protoco
 
 | Kind | Protocol | Built-in types |
 |---|---|---|
-| `loader` | `load(path) -> Iterable[Document]` | `directory`, `text`, `pdf`, `langchain`, `llamaindex` |
-| `chunker` | `split(docs) -> list[Chunk]` | `recursive`, `fixed`, `parent_child` |
+| `loader` | `load(path) -> Iterable[Document]` | `directory`, `text`, `pdf`, `csv`, `langchain`, `llamaindex` |
+| `chunker` | `split(docs) -> list[Chunk]` | `recursive`, `fixed`, `parent_child`, `none` |
 | `embedder` | `embed(texts)`, `dimension` (optional `embed_query`) | `fake`, `openai`, `sentence_transformers`, `langchain`, `llamaindex` |
 | `store` | `add`, `search`, `delete`, `persist`, `load` | `memory`, `qdrant` |
 | `keyword_index` | `add`, `search`, `persist`, `load` | `bm25` |
-| `retriever` | `retrieve(query, k, filters)` | `vector`, `keyword`, `hybrid`, `parent_child`, `langchain`, `llamaindex` |
+| `retriever` | `retrieve(query, k, filters)` | `vector`, `keyword`, `hybrid`, `parent_child`, `corrective`, `sql`, `langchain`, `llamaindex` |
 | `reranker` | `rerank(query, chunks, top_n)` | `none`, `cross_encoder` |
 | `generator` | `generate(query, contexts) -> Answer` | `fake`, `openai`, `ollama`, `langchain`, `llamaindex` |
 
@@ -22,6 +22,10 @@ Data flows through these models: `Document` → `Chunk` → `RetrievedChunk` →
 **Ingest:** loader → chunker → embedder → store (+ keyword index) → persisted to `index_dir`.
 
 **Query:** retriever (with ACL filters) → reranker → generator → `Answer`.
+
+Components receive `embedder`, `store`, `keyword_index`, `generator` and `index_dir` by
+constructor parameter name. A component that implements `index_documents(docs)` also
+receives the raw documents at ingest; the SQL retriever uses this to build its database.
 
 ## Blueprints
 
@@ -61,7 +65,8 @@ merged result with `ragpick validate`.
 | long, structured documents | `parent_child` |
 | small corpus, not keyword-heavy | `naive` |
 | keyword-heavy, or medium/large corpus | `hybrid` |
-| structured data (sql, csv, …) | `sql` (planned) → warns and falls back to `hybrid` |
+| structured data (csv, sql, sqlite, …) | `sql` (warns about mixed data and row-level ACL) |
+| `strict_grounding` (wrong answers are costly) | `corrective` (over `parent_child` for long documents) |
 | `latency: low` | reranker disabled, with a reason |
 | `access_control` with a store that cannot filter | warning |
 | large corpus on the in-memory store | warning, suggests Qdrant |

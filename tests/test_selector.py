@@ -50,14 +50,43 @@ def test_keyword_and_size_reasons_both_reported() -> None:
     assert sum("BM25" in x for x in r.reasons) == 2
 
 
-def test_structured_data_recommends_sql_but_falls_back() -> None:
-    r = rec(data_types=["markdown", "SQL"])
-    assert r.blueprint == "hybrid"
-    assert r.alternatives[0] == "sql (planned)"
-    assert any("planned" in w and "'sql'" in w for w in r.warnings)
-    assert any("Structured data (sql)" in reason for reason in r.reasons)
+def test_structured_data_recommends_sql() -> None:
+    r = rec(data_types=["CSV"])
+    assert r.blueprint == "sql"
+    assert any("Structured data (csv)" in reason for reason in r.reasons)
+    assert "hybrid" in r.alternatives
+    assert not r.warnings
     # reasons for blueprints that lost the vote are not shown
     assert not any("small corpus" in reason for reason in r.reasons)
+
+
+def test_mixed_data_and_sql_access_control_warn() -> None:
+    r = rec(data_types=["markdown", "sql"], access_control=True)
+    assert r.blueprint == "sql"
+    assert any("second pipeline" in w for w in r.warnings)
+    assert any("table_groups" in w for w in r.warnings)
+    assert not any("second pipeline" in w for w in rec(data_types=["sqlite"]).warnings)
+
+
+def test_strict_grounding_chooses_corrective() -> None:
+    r = rec(strict_grounding=True, keyword_heavy=True, long_documents=False)
+    assert r.blueprint == "corrective"
+    assert any("I don't know" in reason for reason in r.reasons)
+    assert r.overrides == {}
+    assert not r.warnings
+
+
+def test_corrective_with_long_documents_uses_parent_child_base() -> None:
+    r = rec(strict_grounding=True, long_documents=True)
+    assert r.blueprint == "corrective"
+    assert r.overrides["retriever"] == {"type": "corrective", "params": {"base": "parent_child"}}
+    assert r.overrides["chunker"] == {"type": "parent_child"}
+    assert any("whole sections" in reason for reason in r.reasons)
+
+
+def test_corrective_low_latency_warns() -> None:
+    r = rec(strict_grounding=True, latency="low")
+    assert any("grading call" in w for w in r.warnings)
 
 
 def test_low_latency_disables_reranker_with_reason() -> None:
@@ -128,9 +157,9 @@ def test_long_documents_with_low_latency_warns() -> None:
     assert not any("parent_size" in w for w in rec(long_documents=True).warnings)
 
 
-def test_structured_data_still_beats_long_documents() -> None:
-    r = rec(data_types=["sql"], long_documents=True)
-    assert r.blueprint == "hybrid"  # sql (planned) wins the vote, falls back to hybrid
+def test_structured_data_beats_other_votes() -> None:
+    r = rec(data_types=["sql"], long_documents=True, strict_grounding=True)
+    assert r.blueprint == "sql"
 
 
 def test_pdf_extra_warning_and_parent_child_alternative() -> None:

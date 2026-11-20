@@ -115,6 +115,38 @@ interfaces extensible. Each decision is listed here so it can be revisited.
 40. **setup-uv is pinned to an exact version** (`v10.3.3`) because it no longer publishes
     major tags, and sets `activate-environment: true`, which newer versions no longer imply.
 
+## v0.3
+
+41. **Tracing is built in and dependency-free**: a context-variable span stack whose
+    `span()`/`set_attributes()` are no-ops without an active trace. OpenTelemetry and
+    similar backends are `trace_exporter` plugins rather than a dependency.
+42. **Cache = one SQLite file**, keyed by SHA-256 of (namespace, component fingerprint,
+    input). Generator fingerprints include the system prompt, so prompt changes invalidate
+    answers. Cached answers report `usage.cached = True` and zero tokens.
+43. **The generator is built before the retriever** and injected by name, so retrievers
+    that need an LLM (`corrective`, `sql`) reuse the pipeline's (cached, traced) model.
+44. **`corrective` grades in one LLM call per round** (all passages in one prompt), not one
+    call per passage. An unparseable grader reply keeps all contexts and logs a warning
+    (fail open on parsing, so a flaky model doesn't silence every answer). `grader: auto`
+    uses lexical grading for fake generators (`is_fake = True`).
+45. **Corrective refusal returns zero contexts**, and the generator answers "I don't know"
+    without an LLM call. `on_failure: keep` opts out.
+46. **SQL uses the standard-library `sqlite3`** with defence in depth: read-only URI +
+    `query_only`, an authorizer that allows only `SELECT`/`READ`/`FUNCTION`/`RECURSIVE`
+    and only reads of visible real tables, single-`SELECT` validation, a progress-handler
+    timeout and a row cap. CTE names aren't tables; reads inside CTEs are checked
+    individually. Other databases (Postgres, …) can come later behind the same retriever.
+47. **SQL access control is table-level** (`table_groups`), enforced in both the schema
+    prompt and the authorizer; row-level security is out of scope. Access-denied errors
+    are not retried, so the model can't probe.
+48. **CSV ingest goes through a `DocumentIndexer` hook**: the `csv` loader yields one
+    document per file, the `none` chunker keeps the vector store empty, and the SQL
+    retriever builds `<index_dir>/sql/data.sqlite`. With `database:` set, no ingest is
+    required (`requires_ingest = False`).
+49. **The `sql` blueprint defaults to the fake generator** like every blueprint (so building
+    it never needs a key), and the retriever explains at query time that SQL needs a real
+    LLM. Blueprints declare `data: documents | structured`; `bench` compares document ones.
+
 ## Tooling
 
 31. **`types-PyYAML` is not a dev dependency** (it wasn't in the approved list), so mypy

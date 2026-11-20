@@ -122,10 +122,10 @@ allowed_groups: [support]
 | `naive` | ✅ stable | prototypes, small corpora |
 | `hybrid` | ✅ stable | **default for commercial systems**; keyword-heavy domains (BM25 + vector + RRF, optional cross-encoder) |
 | `parent_child` | ✅ stable | long structured documents: search small chunks, answer from whole sections |
-| `sql` | 🗺 planned | structured data, analytics questions |
+| `sql` | ✅ stable | structured data (CSV, SQLite): read-only text-to-SQL with table-level access control |
 | `graph` | 🗺 planned | multi-hop and global questions (GraphRAG) |
 | `agentic` | 🗺 planned | multi-step questions and tool use |
-| `corrective` | 🗺 planned | noisy corpora with retrieval grading |
+| `corrective` | ✅ stable | grades retrieval, retries, and says "I don't know" instead of guessing |
 
 ## CLI
 
@@ -135,10 +135,11 @@ allowed_groups: [support]
 | `ragpick recommend` | blueprint, reasons, alternatives, warnings |
 | `ragpick blueprints` | catalogue and roadmap |
 | `ragpick ingest PATH` | load, chunk, embed, index, persist |
-| `ragpick query "…"` | answer with citations (`--groups`, `--show-contexts`) |
+| `ragpick query "…"` | answer with citations (`--groups`, `--show-contexts`, `--trace`) |
 | `ragpick eval DATASET -c a.yaml -c b.yaml` | comparison table (`--output results.json/.csv`) |
 | `ragpick bench DATASET --data DOCS` | try every stable blueprint, pick the winner (`--write rag.yaml`) |
 | `ragpick validate` | print the merged config (secrets masked) |
+| `ragpick cache stats` / `clear` | inspect or clear the embedding/LLM cache |
 
 ## Optional extras
 
@@ -152,6 +153,30 @@ allowed_groups: [support]
 | `all` | everything above |
 
 The Ollama generator needs no extra.
+
+## Tracing and caching
+
+See where time goes, and stop paying twice for the same work:
+
+```bash
+ragpick query "What does error E-1042 mean?" --trace
+```
+
+```text
+query 2.4 ms
+├── retrieve 0.7 ms  retriever=corrective attempts=1 kept=2
+│   ├── vector_search 0.5 ms  results=5
+│   ├── keyword_search 0.0 ms  results=2
+│   └── grade 0.2 ms  grader=lexical contexts=5 relevant=2
+└── generate 0.1 ms  prompt_tokens=516 completion_tokens=33 cached=False
+```
+
+```yaml
+tracing: {enabled: true, exporters: [{type: jsonl, params: {path: .ragpick/traces.jsonl}}]}
+cache: {enabled: true}     # embeddings, answers and LLM calls, keyed by model fingerprint
+```
+
+See [docs/operations.md](docs/operations.md).
 
 ## LangChain and LlamaIndex
 
@@ -174,15 +199,17 @@ See [docs/adapters.md](docs/adapters.md).
 
 [Concepts](docs/concepts.md) · [Blueprints](docs/blueprints.md) ·
 [Config reference](docs/config-reference.md) · [Writing a plugin](docs/plugins.md) ·
-[Evaluation](docs/evaluation.md) · [LangChain & LlamaIndex](docs/adapters.md) ·
+[Evaluation](docs/evaluation.md) · [Tracing & caching](docs/operations.md) ·
+[LangChain & LlamaIndex](docs/adapters.md) ·
 [Design decisions](docs/decisions.md)
 
 ## Roadmap
 
 - **v0.2** ✅: `parent_child` blueprint, `ragpick bench`, LangChain and LlamaIndex adapters
-- **v0.3**: `sql` and `corrective` blueprints, tracing, caching
-- **Later**: `graph` and `agentic` blueprints, `ragpick serve` HTTP API, multi-tenancy,
-  TypeScript SDK
+- **v0.3** ✅: `sql` and `corrective` blueprints, tracing, caching
+- **v0.4**: query routing between `sql` and document pipelines, `ragpick serve` HTTP API,
+  OpenTelemetry trace exporter
+- **Later**: `graph` and `agentic` blueprints, multi-tenancy, TypeScript SDK
 
 ## Contributing
 

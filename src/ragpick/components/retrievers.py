@@ -13,6 +13,7 @@ from ragpick.components.chunkers import PARENT_ID_KEY, PARENT_TEXT_KEY
 from ragpick.interfaces import Embedder, KeywordIndex, Retriever, VectorStore
 from ragpick.models import Chunk, RetrievedChunk
 from ragpick.registry import register
+from ragpick.tracing import set_attributes, span
 
 
 def embed_query(embedder: Embedder, query: str) -> list[float]:
@@ -75,7 +76,10 @@ class VectorRetriever:
         self, query: str, k: int | None = None, filters: dict[str, Any] | None = None
     ) -> list[RetrievedChunk]:
         """Top-``k`` chunks by vector similarity."""
-        return self.store.search(embed_query(self.embedder, query), k or self.k, filters)
+        with span("vector_search", k=k or self.k):
+            results = self.store.search(embed_query(self.embedder, query), k or self.k, filters)
+            set_attributes(results=len(results))
+            return results
 
 
 @register("retriever", "keyword")
@@ -90,7 +94,10 @@ class KeywordRetriever:
         self, query: str, k: int | None = None, filters: dict[str, Any] | None = None
     ) -> list[RetrievedChunk]:
         """Top-``k`` chunks by keyword score."""
-        return self.keyword_index.search(query, k or self.k, filters)
+        with span("keyword_search", k=k or self.k):
+            results = self.keyword_index.search(query, k or self.k, filters)
+            set_attributes(results=len(results))
+            return results
 
 
 @register("retriever", "hybrid")

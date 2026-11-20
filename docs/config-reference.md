@@ -21,6 +21,8 @@ Top-level schema of ``rag.yaml``.
 | `components` | ComponentsConfig | **required** | Pipeline components (usually partly supplied by the blueprint). |
 | `query` | QueryConfig | see section | Query-time settings. |
 | `eval` | EvalConfig | see section | Evaluation settings. |
+| `tracing` | TracingConfig | see section | Query tracing. |
+| `cache` | CacheConfig | see section | Caching. |
 | `index_dir` | str | `'.ragpick/index'` | Where indexes are persisted. |
 
 ## `requirements`
@@ -33,6 +35,7 @@ What the application needs. Used by the selector (`ragpick recommend`).
 | `corpus_size` | `small` \| `medium` \| `large` | `'small'` | small (<1k chunks), medium, or large (>100k chunks). |
 | `keyword_heavy` | bool | `False` | Queries rely on exact terms: product codes, legal terms, IDs. |
 | `long_documents` | bool | `False` | Documents are long and structured (manuals, policies, contracts). |
+| `strict_grounding` | bool | `False` | Wrong answers are costly: prefer "I don't know" over guessing. |
 | `latency` | `low` \| `normal` | `'normal'` | `low` disables expensive stages. |
 | `needs_citations` | bool | `True` | Answers must cite their sources. |
 | `access_control` | bool | `False` | Documents are restricted to groups (`allowed_groups` metadata). |

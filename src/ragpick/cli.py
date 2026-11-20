@@ -18,6 +18,7 @@ from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, T
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 from rich.text import Text
+from rich.tree import Tree
 
 from ragpick import __version__
 from ragpick.blueprints import blueprint_defaults, list_blueprints
@@ -32,6 +33,7 @@ from ragpick.eval.runner import (
 )
 from ragpick.pipeline import Pipeline
 from ragpick.selector import Recommendation, recommend
+from ragpick.tracing import Span
 
 app = typer.Typer(
     name="ragpick",
@@ -167,6 +169,7 @@ def _ask_requirements() -> Requirements:
     )
     keyword = _confirm("Do queries use exact terms (product codes, IDs, legal terms)?", False)
     long_docs = _confirm("Are documents long and structured (manuals, policies, contracts)?", False)
+    strict = _confirm('Is a wrong answer worse than "I don\'t know"?', False)
     latency = _ask("Latency requirement", "normal", ["low", "normal"])
     citations = _confirm("Must answers cite their sources?", True)
     acl = _confirm("Are some documents restricted to certain user groups?", False)
@@ -176,6 +179,7 @@ def _ask_requirements() -> Requirements:
             "corpus_size": corpus,
             "keyword_heavy": keyword,
             "long_documents": long_docs,
+            "strict_grounding": strict,
             "latency": latency,
             "needs_citations": citations,
             "access_control": acl,
@@ -245,6 +249,11 @@ def init(
     console.print(
         f"[green]✓[/] Wrote {output} (blueprint [cyan]{blueprint}[/], provider {provider})"
     )
+    if blueprint == "sql" and provider == "fake":
+        console.print(
+            "  [yellow]![/] The sql blueprint needs a real LLM to write queries: "
+            "re-run with --provider openai or ollama."
+        )
     if provider == "openai":
         console.print("  Next: pip install 'ragpick[openai]' and export OPENAI_API_KEY")
     elif provider == "ollama":
@@ -354,11 +363,14 @@ def query(
         bool, typer.Option("--show-contexts", help="Show retrieved contexts.")
     ] = False,
     top_k: Annotated[int | None, typer.Option(help="Number of contexts.")] = None,
+    trace: Annotated[bool, typer.Option("--trace", help="Show timings of every stage.")] = False,
     set_: SetOpt = None,
 ) -> None:
     """Answer a question from the index."""
     pipeline = Pipeline.from_yaml(config, _overrides(set_))
-    answer = pipeline.query(question, groups=_split_groups(groups), top_k=top_k)
+    answer = pipeline.query(
+        question, groups=_split_groups(groups), top_k=top_k, trace=True if trace else None
+    )
     console.print(Panel(Text(answer.text), title="Answer", expand=False))
     if answer.citations:
         console.print("[bold]Citations:[/] " + ", ".join(answer.citations), highlight=False)
@@ -374,11 +386,36 @@ def query(
             snippet = snippet[:160] + ("…" if len(snippet) > 160 else "")
             table.add_row(str(i), Text(ctx.chunk.id), f"{ctx.score:.4f}", ctx.source, Text(snippet))
         console.print(table)
+    if trace and answer.trace is not None:
+        console.print(_trace_tree(answer.trace))
     usage = answer.usage
+    cached = " · cached" if usage.cached else ""
     console.print(
         f"[dim]{usage.latency_ms:.0f} ms · {usage.prompt_tokens} prompt + "
-        f"{usage.completion_tokens} completion tokens[/]"
+        f"{usage.completion_tokens} completion tokens{cached}[/]"
     )
+
+
+def _trace_tree(root: Span) -> Tree:
+    def label(s: Span) -> Text:
+        text = Text(f"{s.name} ", style="bold")
+        text.append(f"{s.duration_ms:.1f} ms", style="cyan")
+        attrs = " ".join(f"{k}={v}" for k, v in s.attributes.items() if k != "sql")
+        if attrs:
+            text.append(f"  {attrs}", style="dim")
+        if "sql" in s.attributes:
+            text.append(f"\n{s.attributes['sql']}", style="green")
+        if s.error:
+            text.append(f"  {s.error}", style="red")
+        return text
+
+    def add(node: Tree, s: Span) -> None:
+        for child in s.children:
+            add(node.add(label(child)), child)
+
+    tree = Tree(label(root))
+    add(tree, root)
+    return tree
 
 
 # --------------------------------------------------------------------------- eval
@@ -574,6 +611,52 @@ def validate_cmd(config: ConfigOpt = DEFAULT_CONFIG, set_: SetOpt = None) -> Non
     console.print(f"[green]✓[/] {config} is valid")
     merged = _mask_secrets(cfg.model_dump(mode="json"))
     console.print(yaml.safe_dump(merged, sort_keys=False), highlight=False, markup=False)
+
+
+# --------------------------------------------------------------------------- cache
+cache_app = typer.Typer(help="Inspect or clear the embedding/LLM cache.", no_args_is_help=True)
+app.add_typer(cache_app, name="cache")
+
+
+def _open_cache(config: Path) -> Any:
+    from ragpick.cache import Cache
+
+    cfg = load_config(config)
+    path = cfg.resolve_path(cfg.cache.dir) / "cache.sqlite"
+    if not path.exists():
+        raise RagpickError(
+            f"No cache at {path}. Enable it with `cache: {{enabled: true}}` in {config}."
+        )
+    return Cache(path)
+
+
+@cache_app.command("stats")
+@friendly
+def cache_stats(config: ConfigOpt = DEFAULT_CONFIG) -> None:
+    """Show how many entries the cache holds."""
+    cache = _open_cache(config)
+    try:
+        stats = cache.stats()
+    finally:
+        cache.close()
+    table = Table(title=f"Cache ({cache.path})")
+    table.add_column("Kind")
+    table.add_column("Entries", justify="right")
+    for kind, count in stats.items():
+        table.add_row(kind, str(count), style="bold" if kind == "total" else None)
+    console.print(table)
+
+
+@cache_app.command("clear")
+@friendly
+def cache_clear(config: ConfigOpt = DEFAULT_CONFIG) -> None:
+    """Delete every cache entry."""
+    cache = _open_cache(config)
+    try:
+        removed = cache.clear()
+    finally:
+        cache.close()
+    console.print(f"[green]✓[/] Removed {removed} cache entries")
 
 
 def main() -> None:

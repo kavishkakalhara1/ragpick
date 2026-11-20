@@ -7,10 +7,10 @@ Run `ragpick blueprints` to see this list in your terminal.
 | `naive` | stable | prototypes, small corpora, natural-language questions over prose |
 | `hybrid` | stable | the default for commercial systems; keyword-heavy domains; medium and large corpora |
 | `parent_child` | stable | long structured documents where answers need surrounding context |
-| `sql` | planned | structured data and analytics questions (text-to-SQL) |
+| `sql` | stable | structured data and analytics questions (text-to-SQL) |
 | `graph` | planned | multi-hop and "main themes" questions (GraphRAG) |
 | `agentic` | planned | complex questions needing several lookups or tools |
-| `corrective` | planned | noisy corpora: grade retrieval, rewrite, or fall back |
+| `corrective` | stable | noisy corpora, high-stakes answers: grade retrieval, retry, or refuse |
 
 ## naive
 
@@ -81,6 +81,77 @@ query:
 
 Trade-offs: bigger prompts, and parent text is stored once per child. Set
 `requirements.long_documents: true` and `ragpick recommend` will suggest it.
+
+## corrective
+
+```text
+query → base retrieval (hybrid) → grade each context ─┬─ enough relevant → generator
+                                                      └─ too few → rewrite query → retrieve → grade
+                                                                   └─ still none → "I don't know"
+```
+
+Plain RAG answers from whatever it retrieved, even when that's irrelevant, and that is
+where many hallucinations come from. `corrective` checks first:
+
+- **Grading** asks the LLM which passages actually help answer the question (one call per
+  query). With the offline fake generator, a lexical test (share of question terms present)
+  is used instead.
+- **Correction.** If fewer than `min_relevant` contexts pass, an LLM rewrites the query
+  (exact terms kept, synonyms added) and it retrieves again. Offline, it searches deeper in
+  the ranking instead.
+- **Refusal.** If nothing relevant is found, no contexts are passed on and the answer is
+  "I don't know." (`on_failure: keep` falls back to the ungraded contexts.)
+
+```yaml
+blueprint: corrective
+components:
+  retriever:
+    params: {base: hybrid, grader: auto, min_relevant: 1, rewrite: true, on_failure: empty}
+  generator: {type: openai, params: {model: gpt-4o-mini}}   # enables LLM grading
+```
+
+`base: parent_child` combines it with parent-child retrieval (set the chunker to
+`parent_child` too). Run `ragpick query --trace` to see the grade/rewrite steps. Set
+`requirements.strict_grounding: true` and the selector recommends it.
+
+## sql
+
+```text
+question + schema → LLM writes one SELECT → SQLite (read-only) → result rows → generator
+```
+
+For structured data, retrieval is the wrong tool: "how many LM-300s did we sell in
+October?" needs `SUM`, not similar text. The `sql` blueprint lets the LLM write the query
+and answers from the real result rows, citing the SQL.
+
+```yaml
+blueprint: sql
+data: tables                      # CSV files: one table per file (loader type: csv)
+components:
+  retriever:
+    params:
+      # database: ./shop.sqlite   # …or query an existing SQLite file (no ingest needed)
+      table_groups: {salaries: [hr]}
+      max_rows: 50
+  generator: {type: openai, params: {model: gpt-4o-mini}}   # needs a real LLM
+```
+
+**Safety is enforced by SQLite, not by the prompt:**
+
+| Layer | What it stops |
+|---|---|
+| read-only connection (`mode=ro`, `query_only`) | any write, even if everything else failed |
+| authorizer allow-list | anything but `SELECT`/reads/functions (`ATTACH`, `PRAGMA`, writes in CTEs), reads of hidden tables and of `sqlite_master` |
+| statement check | multiple statements, non-`SELECT` statements |
+| timeout and row cap | runaway queries, huge results |
+
+A failed query is retried once with the error message. Denied access is never retried,
+so a model can't probe for hidden tables.
+
+**Access control is table-level.** `table_groups: {salaries: [hr]}` hides the table from
+the schema the LLM sees *and* denies it in the authorizer, unless the caller is in `hr`
+(`--groups hr`). There is no row-level security: split restricted rows into their own
+table. `ragpick bench` skips `sql` unless you pass `-b sql`.
 
 ## Adding a blueprint
 

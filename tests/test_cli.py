@@ -102,6 +102,7 @@ def test_init_interactive(workdir: Path) -> None:
             "medium",  # corpus size
             "y",  # keyword heavy
             "n",  # long documents
+            "n",  # strict grounding
             "low",  # latency
             "y",  # citations
             "y",  # access control

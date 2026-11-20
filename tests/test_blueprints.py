@@ -9,10 +9,12 @@ from ragpick.errors import BlueprintError
 
 def test_list_blueprints_roadmap_order() -> None:
     names = [bp.name for bp in list_blueprints()]
-    assert names[:3] == ["naive", "hybrid", "parent_child"]
-    assert {"sql", "graph", "agentic", "corrective"} <= set(names)
+    assert names[:5] == ["naive", "hybrid", "parent_child", "corrective", "sql"]
+    assert {"graph", "agentic"} <= set(names)
     stable = [bp.name for bp in list_blueprints(include_planned=False)]
-    assert stable == ["naive", "hybrid", "parent_child"]
+    assert stable == ["naive", "hybrid", "parent_child", "corrective", "sql"]
+    assert get_blueprint("sql").metadata.data == "structured"
+    assert get_blueprint("corrective").metadata.data == "documents"
 
 
 def test_planned_blueprints_have_descriptions_and_no_defaults() -> None:
@@ -23,7 +25,7 @@ def test_planned_blueprints_have_descriptions_and_no_defaults() -> None:
             assert bp.defaults == {}
 
 
-@pytest.mark.parametrize("name", ["naive", "hybrid", "parent_child"])
+@pytest.mark.parametrize("name", ["naive", "hybrid", "parent_child", "corrective", "sql"])
 def test_stable_blueprints_produce_valid_configs(name: str) -> None:
     cfg = build_config({"blueprint": name})
     assert cfg.blueprint == name
@@ -36,5 +38,7 @@ def test_defaults_are_copies() -> None:
 
 
 def test_get_unknown_blueprint() -> None:
-    with pytest.raises(BlueprintError, match="Available blueprints: naive, hybrid, parent_child"):
+    with pytest.raises(
+        BlueprintError, match="Available blueprints: naive, hybrid, parent_child, corrective"
+    ):
         get_blueprint("bogus")
