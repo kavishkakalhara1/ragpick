@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://kavishkakalhara1.github.io/ragpick/decisions/">
       
       
-        <link rel="prev" href="../adapters/">
+        <link rel="prev" href="../upgrading/">
       
       
       
@@ -610,6 +610,60 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../upgrading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upgrading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -816,6 +870,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#v10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v1.0
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tooling" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -997,6 +1062,17 @@
     <span class="md-ellipsis">
       
         v0.9
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v1.0
       
     </span>
   </a>
@@ -1313,6 +1389,24 @@ interfaces extensible. Each decision is listed here so it can be revisited.</p>
     regression tests; disliked ones become unanswered questions to review.</li>
 <li><strong>Hosted rerankers use <code>httpx</code> directly</strong>, with the same <code>{index, relevance_score}</code>
     result shape for Cohere and Jina, and keep each chunk's original <code>source</code>.</li>
+</ol>
+<h2 id="v10">v1.0<a class="headerlink" href="#v10" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>long_context ranks documents with chunk search</strong> (sum of fused chunk scores), then
+    returns whole documents; full texts are kept via the <code>DocumentIndexer</code> hook so stores
+    stay chunk-based. Token budgets use the same ~4 chars/token estimate as usage.</li>
+<li><strong><code>include_all</code> sorts documents by id</strong>, not by score, so the prompt prefix is identical
+    across questions: correctness of caching beats per-question ordering.</li>
+<li><strong>The 1.x contract is defined by a snapshot</strong>, not by convention: exports, protocol and
+    engine signatures, model fields, config keys, CLI options, HTTP endpoints, registry
+    names and blueprints. CI fails on any difference; intentional changes regenerate it.
+    Signatures use postponed annotations, so the snapshot is identical across Python
+    3.11-3.13.</li>
+<li><strong>Prompts, heuristics, log lines and trace attributes are explicitly not API</strong>, so
+    answer quality can keep improving in minor releases.</li>
+<li><strong>Deprecation before removal</strong>: <code>RagpickDeprecationWarning</code> (a <code>DeprecationWarning</code>
+    subclass, so standard filters work) for at least one minor release; removals only in
+    a major release.</li>
 </ol>
 <h2 id="tooling">Tooling<a class="headerlink" href="#tooling" title="Permanent link">&para;</a></h2>
 <ol>

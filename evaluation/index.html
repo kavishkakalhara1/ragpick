@@ -739,6 +739,60 @@
   
   
     <li class="md-nav__item">
+      <a href="../stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../upgrading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upgrading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../decisions/" class="md-nav__link">
         
   
@@ -1073,6 +1127,11 @@ fails, so a misconfigured job can't pass silently. In GitHub Actions:</p>
 </code></pre></div>
 <h2 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h2>
 <ul>
+<li>
+<p>Rank metrics (MRR, precision) assume contexts are ordered by relevance. They're not
+  meaningful for <code>long_context</code> with <code>include_all</code> (documents in a stable order): compare
+  it with <code>faithfulness</code> / <code>answer_relevance</code> using a judge.</p>
+</li>
 <li>
 <p>If <code>cache</code> is enabled, repeated runs reuse answers: costs drop to zero and latencies to
   near zero. Disable the cache when measuring latency.</p>

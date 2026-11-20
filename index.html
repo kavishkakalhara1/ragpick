@@ -682,6 +682,60 @@
   
   
     <li class="md-nav__item">
+      <a href="stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="upgrading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upgrading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="decisions/" class="md-nav__link">
         
   
@@ -790,14 +844,20 @@ interfaces, config, selector and evaluation; other libraries plug in as componen
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"ragpick[openai]"</span><span class="w">    </span><span class="c1"># + OpenAI embeddings and chat models</span>
 pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"ragpick[all]"</span><span class="w">       </span><span class="c1"># + sentence-transformers, Qdrant, PDF</span>
 </code></pre></div>
+<p>ragpick 1.0 is stable: see the <a href="stability/">stability policy</a> and the
+<a href="upgrading/">upgrade guide</a>.</p>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="concepts/">Concepts</a>: components, blueprints, the selector, access control.</li>
 <li><a href="blueprints/">Blueprints</a>: what each architecture is good at.</li>
 <li><a href="config-reference/">Config reference</a>: every <code>rag.yaml</code> key.</li>
 <li><a href="plugins/">Writing a plugin</a>: add your own loader, store, or model.</li>
-<li><a href="evaluation/">Evaluation</a>: metrics and how to compare configs.</li>
-<li><a href="decisions/">Design decisions</a>: the choices behind v0.1.</li>
+<li><a href="evaluation/">Evaluation</a>: metrics, generated datasets, CI gates and <code>bench</code>.</li>
+<li><a href="routing/">Routing</a>, <a href="serving/">serving</a>, <a href="tenancy/">multi-tenancy</a>,
+  <a href="conversations/">conversations</a> and <a href="feedback/">feedback</a>: running it in production.</li>
+<li><a href="operations/">Tracing &amp; caching</a> and <a href="adapters/">LangChain &amp; LlamaIndex</a>.</li>
+<li><a href="stability/">Stability</a> and <a href="upgrading/">upgrading</a>: the 1.x contract.</li>
+<li><a href="decisions/">Design decisions</a>: the reasoning behind every release.</li>
 </ul>
 
 

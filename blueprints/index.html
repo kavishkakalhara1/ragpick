@@ -477,6 +477,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#long_context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        long_context
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sql" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -783,6 +794,60 @@
   
   
     <li class="md-nav__item">
+      <a href="../stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../upgrading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upgrading
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../decisions/" class="md-nav__link">
         
   
@@ -929,6 +994,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#long_context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        long_context
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sql" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1028,8 +1104,13 @@
 </tr>
 <tr>
 <td><code>long_context</code></td>
+<td>stable</td>
+<td>small corpora with long-context models: whole documents</td>
+</tr>
+<tr>
+<td><code>adaptive</code></td>
 <td>planned</td>
-<td>small corpora with long-context models</td>
+<td>choose the cheapest strategy per question</td>
 </tr>
 <tr>
 <td><code>corrective</code></td>
@@ -1233,6 +1314,36 @@ lets each question find its natural level.</p>
   <code>children</code> and <code>source_docs</code>.</li>
 </ul>
 <p>Set <code>requirements.summary_questions: true</code> and the selector recommends it.</p>
+<h2 id="long_context">long_context<a class="headerlink" href="#long_context" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>query → hybrid chunk search → score documents (sum of their chunks) → whole documents
+        └─ include_all: every visible document, stable order, if they fit the budget
+</code></pre></div>
+<p>When the corpus is small and the model reads 100k+ tokens, chunking only throws away
+context. <code>long_context</code> returns <strong>whole documents</strong> within <code>max_context_tokens</code>
+(about 4 characters per token; a document that doesn't fit is truncated and marked).</p>
+<div class="highlight"><pre><span></span><code><span class="nt">blueprint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">long_context</span>
+<span class="nt">components</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">retriever</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">max_docs</span><span class="p">:</span><span class="w"> </span><span class="nv">3</span><span class="p p-Indicator">,</span><span class="nt"> max_context_tokens</span><span class="p">:</span><span class="w"> </span><span class="nv">100000</span><span class="p p-Indicator">,</span><span class="nt"> include_all</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">generator</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="nv">openai</span><span class="p p-Indicator">,</span><span class="nt"> params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="nv">gpt-4o-mini</span><span class="p p-Indicator">}}</span>
+<span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">top_k</span><span class="p">:</span><span class="w"> </span><span class="nv">50</span><span class="p p-Indicator">}</span><span class="w">     </span><span class="c1"># let the retriever's token budget decide, not top_k</span>
+</code></pre></div>
+<ul>
+<li><strong>Prompt caching.</strong> With <code>include_all</code> and a corpus that fits, every question sends the
+  same documents in the same order (sorted by id), so the long document prefix is
+  identical between questions, which provider-side prompt caching (e.g. OpenAI's automatic
+  caching of long prompt prefixes) can reuse.</li>
+<li><strong>Access control</strong> is document-level: only documents whose metadata matches the
+  caller's <code>allowed_groups</code> are returned, in both modes.</li>
+<li>Contexts have ids <code>doc#full</code> and <code>whole_document: true</code> metadata; citations point at
+  documents.</li>
+<li><strong>Evaluating it.</strong> With <code>include_all</code>, documents come in id order (that's what makes caching
+  work), so rank metrics like MRR say nothing about it, and <code>hit_rate@k</code> is 1.0 by
+  construction. Compare it with other blueprints on judge metrics instead:
+  <code>ragpick bench … --judge openai:gpt-4o-mini --metric faithfulness</code>.</li>
+</ul>
+<p>Set <code>requirements.long_context_model: true</code> with <code>corpus_size: small</code> and the selector
+recommends it (with larger corpora it warns and keeps chunk retrieval).</p>
 <h2 id="sql">sql<a class="headerlink" href="#sql" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>question + schema → LLM writes one SELECT → SQLite (read-only) → result rows → generator
 </code></pre></div>
