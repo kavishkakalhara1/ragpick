@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://kavishkakalhara1.github.io/ragpick/operations/">
       
       
-        <link rel="prev" href="../evaluation/">
+        <link rel="prev" href="../serving/">
       
       
         <link rel="next" href="../adapters/">
@@ -423,6 +423,60 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../routing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Routing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serving/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serving
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -673,7 +727,24 @@ is off:</p>
         <span class="n">set_attributes</span><span class="p">(</span><span class="n">results</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">results</span>
 </code></pre></div>
-<p><strong>Custom exporters</strong> (e.g. OpenTelemetry, Langfuse) are plugins of kind
+<p><strong>OpenTelemetry.</strong> The <code>otel</code> exporter replays each trace as OpenTelemetry spans
+(<code>ragpick.query</code>, <code>ragpick.retrieve</code>, …) with the original timings, parent/child links,
+<code>ragpick.*</code> attributes and error status:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">tracing</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">exporters</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">otel</span>
+<span class="w">      </span><span class="nt">params</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">service_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">support-bot</span>
+<span class="w">        </span><span class="nt">endpoint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://localhost:4318/v1/traces</span><span class="w">   </span><span class="c1"># optional, see below</span>
+</code></pre></div>
+<p>Install OpenTelemetry yourself; it isn't a ragpick dependency. With only
+<code>opentelemetry-api</code> installed, spans go to whatever SDK your application already
+configures. With <code>endpoint</code> set (needs <code>opentelemetry-sdk</code> and
+<code>opentelemetry-exporter-otlp-proto-http</code>), ragpick configures an OTLP/HTTP exporter
+itself. That's handy for <code>ragpick serve</code> and the CLI with Jaeger, Grafana Tempo,
+Honeycomb, etc.</p>
+<p><strong>Other custom exporters</strong> (e.g. Langfuse) are plugins of kind
 <code>trace_exporter</code>: a class with <code>export(root: Span)</code>, registered with
 <code>@register("trace_exporter", "otel")</code> or the <code>ragpick.components</code> entry point
 <code>"trace_exporter.otel"</code>. A failing exporter is logged and never breaks a query.</p>

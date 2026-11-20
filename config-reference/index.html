@@ -481,6 +481,83 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#tracing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tracing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cache
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#serve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        serve
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-key-each-entry-of-serveapi_keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API key (each entry of serve.api_keys)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#router-config-top-level-of-a-router-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Router config (top level of a router file)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#router" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        router
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#route-each-entry-of-routerroutes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Route (each entry of router.routes)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -531,6 +608,60 @@
     
   
     Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../routing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Routing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serving/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serving
   
 
     
@@ -727,6 +858,83 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#tracing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tracing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cache
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#serve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        serve
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-key-each-entry-of-serveapi_keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API key (each entry of serve.api_keys)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#router-config-top-level-of-a-router-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Router config (top level of a router file)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#router" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        router
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#route-each-entry-of-routerroutes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Route (each entry of router.routes)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -825,6 +1033,12 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 <td>CacheConfig</td>
 <td>see section</td>
 <td>Caching.</td>
+</tr>
+<tr>
+<td><code>serve</code></td>
+<td>ServeConfig</td>
+<td>see section</td>
+<td>HTTP API settings.</td>
 </tr>
 <tr>
 <td><code>index_dir</code></td>
@@ -1053,6 +1267,296 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 <td>float</td>
 <td><code>0.0</code></td>
 <td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="tracing"><code>tracing</code><a class="headerlink" href="#tracing" title="Permanent link">&para;</a></h2>
+<p>Query tracing (nested, timed spans per stage).</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>bool</td>
+<td><code>False</code></td>
+<td>Record a trace for every query.</td>
+</tr>
+<tr>
+<td><code>exporters</code></td>
+<td>list[ComponentSpec]</td>
+<td><code>[]</code></td>
+<td>Where traces go: <code>jsonl</code> (params: path) and/or <code>console</code>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="cache"><code>cache</code><a class="headerlink" href="#cache" title="Permanent link">&para;</a></h2>
+<p>Persistent cache for embeddings and LLM calls.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>bool</td>
+<td><code>False</code></td>
+<td>Turn caching on.</td>
+</tr>
+<tr>
+<td><code>dir</code></td>
+<td>str</td>
+<td><code>'.ragpick/cache'</code></td>
+<td>Cache directory.</td>
+</tr>
+<tr>
+<td><code>embeddings</code></td>
+<td>bool</td>
+<td><code>True</code></td>
+<td>Cache embeddings.</td>
+</tr>
+<tr>
+<td><code>generations</code></td>
+<td>bool</td>
+<td><code>True</code></td>
+<td>Cache answers and LLM completions.</td>
+</tr>
+<tr>
+<td><code>ttl_seconds</code></td>
+<td>float | null</td>
+<td><code>None</code></td>
+<td>Expire entries after this age.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="serve"><code>serve</code><a class="headerlink" href="#serve" title="Permanent link">&para;</a></h2>
+<p>HTTP API settings for <code>ragpick serve</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>host</code></td>
+<td>str</td>
+<td><code>'127.0.0.1'</code></td>
+<td>Interface to bind.</td>
+</tr>
+<tr>
+<td><code>port</code></td>
+<td>int</td>
+<td><code>8000</code></td>
+<td>Port to bind.</td>
+</tr>
+<tr>
+<td><code>api_keys</code></td>
+<td>list[ApiKeySpec]</td>
+<td><code>[]</code></td>
+<td>If set, requests need <code>Authorization: Bearer &lt;key&gt;</code>.</td>
+</tr>
+<tr>
+<td><code>max_body_bytes</code></td>
+<td>int</td>
+<td><code>65536</code></td>
+<td>Largest accepted request body.</td>
+</tr>
+<tr>
+<td><code>cors_origins</code></td>
+<td>list[str]</td>
+<td><code>[]</code></td>
+<td>Origins allowed by CORS (<code>*</code> for any).</td>
+</tr>
+<tr>
+<td><code>allow_traces</code></td>
+<td>bool</td>
+<td><code>False</code></td>
+<td>Let clients request traces in responses.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="api-key-each-entry-of-serveapi_keys">API key (each entry of <code>serve.api_keys</code>)<a class="headerlink" href="#api-key-each-entry-of-serveapi_keys" title="Permanent link">&para;</a></h2>
+<p>An API key for <code>ragpick serve</code> and the groups its holder may act as.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>key</code></td>
+<td>str</td>
+<td><strong>required</strong></td>
+<td>The secret; use <code>${ENV_VAR}</code> interpolation.</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>str</td>
+<td><code>'client'</code></td>
+<td>Label used in logs.</td>
+</tr>
+<tr>
+<td><code>groups</code></td>
+<td>list[str] | null</td>
+<td><code>None</code></td>
+<td>Groups this key may query as (<code>null</code> = any groups the request names).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="router-config-top-level-of-a-router-file">Router config (top level of a router file)<a class="headerlink" href="#router-config-top-level-of-a-router-file" title="Permanent link">&para;</a></h2>
+<p>A config that routes each question to one of several pipelines.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>version</code></td>
+<td><code>1</code></td>
+<td><code>1</code></td>
+<td>Config schema version.</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>str</td>
+<td><code>'ragpick-router'</code></td>
+<td>Application name.</td>
+</tr>
+<tr>
+<td><code>router</code></td>
+<td>RouterSpec</td>
+<td><strong>required</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>eval</code></td>
+<td>EvalConfig</td>
+<td>see section</td>
+<td>Evaluation settings.</td>
+</tr>
+<tr>
+<td><code>tracing</code></td>
+<td>TracingConfig</td>
+<td>see section</td>
+<td>Query tracing.</td>
+</tr>
+<tr>
+<td><code>serve</code></td>
+<td>ServeConfig</td>
+<td>see section</td>
+<td>HTTP API settings.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="router"><code>router</code><a class="headerlink" href="#router" title="Permanent link">&para;</a></h2>
+<p>How questions are routed.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>strategy</code></td>
+<td><code>auto</code> | <code>llm</code> | <code>keywords</code></td>
+<td><code>'auto'</code></td>
+<td><code>auto</code> uses the LLM when one is available, else keywords.</td>
+</tr>
+<tr>
+<td><code>routes</code></td>
+<td>list[RouteSpec]</td>
+<td><strong>required</strong></td>
+<td>Possible destinations.</td>
+</tr>
+<tr>
+<td><code>default</code></td>
+<td>str | null</td>
+<td><code>None</code></td>
+<td>Fallback route (default: the first).</td>
+</tr>
+<tr>
+<td><code>fallback</code></td>
+<td>bool</td>
+<td><code>True</code></td>
+<td>Retry on the default route when the chosen one can't answer.</td>
+</tr>
+<tr>
+<td><code>llm</code></td>
+<td>ComponentSpec | null</td>
+<td><code>None</code></td>
+<td>Generator used to classify questions (default: a route's LLM).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="route-each-entry-of-routerroutes">Route (each entry of <code>router.routes</code>)<a class="headerlink" href="#route-each-entry-of-routerroutes" title="Permanent link">&para;</a></h2>
+<p>One destination of a router: another pipeline config.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>str</td>
+<td><strong>required</strong></td>
+<td>Route name.</td>
+</tr>
+<tr>
+<td><code>config</code></td>
+<td>str</td>
+<td><strong>required</strong></td>
+<td>Path to the route's rag.yaml (relative to this file).</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td>str</td>
+<td><code>''</code></td>
+<td>What this route answers (shown to the LLM router).</td>
+</tr>
+<tr>
+<td><code>keywords</code></td>
+<td>list[str]</td>
+<td><code>[]</code></td>
+<td>Words/phrases that point to this route.</td>
+</tr>
+<tr>
+<td><code>groups</code></td>
+<td>list[str] | null</td>
+<td><code>None</code></td>
+<td>Only callers in these groups may be routed here.</td>
 </tr>
 </tbody>
 </table>
