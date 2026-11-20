@@ -729,6 +729,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#v07" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.7
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tooling" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -877,6 +888,17 @@
     <span class="md-ellipsis">
       
         v0.6
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v07" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.7
       
     </span>
   </a>
@@ -1138,6 +1160,25 @@ interfaces extensible. Each decision is listed here so it can be revisited.</p>
 <li><strong>Tenancy is explicit both ways</strong>: multi-tenant pipelines require a tenant, normal
     pipelines reject one (a <code>TenantError</code>, HTTP 400). Tenant-bound API keys override and
     restrict the request's tenant (403 on mismatch).</li>
+</ol>
+<h2 id="v07">v0.7<a class="headerlink" href="#v07" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Multimodal = describe-then-index.</strong> Images become text documents at ingest, so
+    every retriever, store, reranker, evaluation and access-control feature works
+    unchanged. Native image embeddings (CLIP-style) can come later as an embedder.</li>
+<li><strong>The generator is built first</strong> and injected into loaders by parameter name, so
+    the multimodal loader reuses the pipeline's (cached) vision model.</li>
+<li><strong>Vision is an optional protocol</strong> (<code>describe_image</code>) on the OpenAI and Ollama
+    generators. If a vision call fails, the image keeps its offline description
+    (<code>description_source: offline-fallback</code>), so one bad image doesn't abort ingest.</li>
+<li><strong>Offline image descriptions use what authors already wrote</strong>: file names, Markdown
+    alt text and caption files. Caption front matter can restrict images.</li>
+<li><strong>pgvector without the pgvector package</strong>: vectors are sent as text and cast to
+    <code>vector</code>; filters become parameterised SQL over JSONB (values compared as text, list
+    metadata matched by array overlap), and the table name must be a plain identifier.</li>
+<li><strong>Generated datasets are a starting point.</strong> Chunks are sampled round-robin across
+    documents for coverage. LLM output that doesn't parse falls back to the heuristic,
+    and restricted documents' groups are copied onto their questions.</li>
 </ol>
 <h2 id="tooling">Tooling<a class="headerlink" href="#tooling" title="Permanent link">&para;</a></h2>
 <ol>

@@ -444,6 +444,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#multimodal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        multimodal
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sql" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -809,6 +820,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#multimodal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        multimodal
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sql" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -893,8 +915,13 @@
 </tr>
 <tr>
 <td><code>multimodal</code></td>
+<td>stable</td>
+<td>images, diagrams, scans and charts inside documents</td>
+</tr>
+<tr>
+<td><code>conversational</code></td>
 <td>planned</td>
-<td>images, charts and scanned pages inside documents</td>
+<td>multi-turn chat: follow-up rewriting with chat history</td>
 </tr>
 <tr>
 <td><code>corrective</code></td>
@@ -1036,6 +1063,37 @@ through the base retriever (<code>hybrid</code>, <code>vector</code>, <code>pare
 filters, so access control holds. <code>ragpick query --trace</code> shows each <code>agent_plan</code> and
 <code>agent_search</code> step. Set <code>requirements.complex_questions: true</code> and the selector
 recommends it.</p>
+<h2 id="multimodal">multimodal<a class="headerlink" href="#multimodal" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>ingest: text / Markdown / PDF ───────────────────────────────┐
+        images + images inside PDFs → description ───────────┴→ chunk → hybrid index
+        (vision LLM, or file name + alt text + caption offline)
+query:  hybrid search over text and image descriptions → answer cites the image
+</code></pre></div>
+<p>Diagrams, screenshots, wiring charts and scanned pages often hold exactly the answer,
+and plain text pipelines can't see them. <code>multimodal</code> turns every image into a
+description at ingest:</p>
+<ul>
+<li><strong>With a vision model</strong> (<code>generator: openai</code> with <code>gpt-4o-mini</code>, or <code>ollama</code> with a vision
+  model like <code>llava</code>), each image is described, transcribing visible text, labels and
+  numbers. Turn on <code>cache</code> so re-ingesting doesn't pay again: descriptions are keyed by
+  image hash.</li>
+<li><strong>Offline</strong>, the description comes from the file name, the alt text of every Markdown
+  <code>![alt](image.png)</code> reference, and an optional caption file next to the image
+  (<code>diagram.png.txt</code> or <code>diagram.txt</code>). A caption file may start with front matter
+  (<code>allowed_groups: [hr]</code>) to restrict the image.</li>
+<li>Images inside PDFs are extracted and described too (<code>pdf_images: true</code>, needs
+  <code>ragpick[pdf]</code>).</li>
+</ul>
+<p>Image documents keep <code>modality: image</code>, <code>image_path</code> and <code>mime</code> in their metadata
+(returned by <code>ragpick serve</code>), so your UI can show the picture next to the answer.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">blueprint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">multimodal</span>
+<span class="nt">components</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">loader</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">describe</span><span class="p">:</span><span class="w"> </span><span class="nv">auto</span><span class="p p-Indicator">,</span><span class="nt"> pdf_images</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> max_image_bytes</span><span class="p">:</span><span class="w"> </span><span class="nv">20000000</span><span class="p p-Indicator">}}</span>
+<span class="w">  </span><span class="nt">generator</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="nv">openai</span><span class="p p-Indicator">,</span><span class="nt"> params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="nv">gpt-4o-mini</span><span class="p p-Indicator">}}</span>
+<span class="nt">cache</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">}</span>
+</code></pre></div>
+<p>Set <code>requirements.data_types</code> to include <code>diagrams</code>, <code>images</code>, <code>screenshots</code>, <code>scanned</code>, …
+and the selector recommends it.</p>
 <h2 id="sql">sql<a class="headerlink" href="#sql" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>question + schema → LLM writes one SELECT → SQLite (read-only) → result rows → generator
 </code></pre></div>

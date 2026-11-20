@@ -395,6 +395,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#vector-stores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vector stores
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#access-control" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -754,6 +765,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#vector-stores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vector stores
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#access-control" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -800,7 +822,7 @@
 <tr>
 <td><code>loader</code></td>
 <td><code>load(path) -&gt; Iterable[Document]</code></td>
-<td><code>directory</code>, <code>text</code>, <code>pdf</code>, <code>csv</code>, <code>langchain</code>, <code>llamaindex</code></td>
+<td><code>directory</code>, <code>text</code>, <code>pdf</code>, <code>csv</code>, <code>multimodal</code>, <code>langchain</code>, <code>llamaindex</code></td>
 </tr>
 <tr>
 <td><code>chunker</code></td>
@@ -815,7 +837,7 @@
 <tr>
 <td><code>store</code></td>
 <td><code>add</code>, <code>search</code>, <code>delete</code>, <code>persist</code>, <code>load</code></td>
-<td><code>memory</code>, <code>qdrant</code></td>
+<td><code>memory</code>, <code>qdrant</code>, <code>pgvector</code></td>
 </tr>
 <tr>
 <td><code>keyword_index</code></td>
@@ -844,7 +866,8 @@
 <p><strong>Ingest:</strong> loader → chunker → embedder → store (+ keyword index) → persisted to <code>index_dir</code>.</p>
 <p><strong>Query:</strong> retriever (with ACL filters) → reranker → generator → <code>Answer</code>.</p>
 <p>Components receive <code>embedder</code>, <code>store</code>, <code>keyword_index</code>, <code>generator</code> and <code>index_dir</code> by
-constructor parameter name. A component that implements <code>index_documents(docs)</code> also
+constructor parameter name. The generator is built first, so loaders can use it too
+(the multimodal loader describes images with it). A component that implements <code>index_documents(docs)</code> also
 receives the raw documents at ingest (the SQL retriever builds its database this way),
 and one that implements <code>index_chunks(chunks)</code> receives the chunks (the graph retriever
 builds its knowledge graph this way).</p>
@@ -904,6 +927,10 @@ merged result with <code>ragpick validate</code>.</p>
 <td><code>hybrid</code></td>
 </tr>
 <tr>
+<td>images (diagrams, screenshots, scanned, …)</td>
+<td><code>multimodal</code> (warns that vision needs a capable LLM)</td>
+</tr>
+<tr>
 <td>structured data (csv, sql, sqlite, …)</td>
 <td><code>sql</code> (warns about row-level ACL; mixed data → use a <a href="../routing/">router</a>)</td>
 </tr>
@@ -933,6 +960,42 @@ merged result with <code>ragpick validate</code>.</p>
 your documents and questions; see <a href="../evaluation/#bench-try-every-blueprint">Evaluation</a>.</p>
 <p>Every recommendation lists <strong>reasons</strong>, <strong>alternatives</strong> and <strong>warnings</strong>. The rules live
 in <code>ragpick.selector.rules.RULES</code> and are easy to extend.</p>
+<h2 id="vector-stores">Vector stores<a class="headerlink" href="#vector-stores" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Store</th>
+<th>Use it for</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>memory</code></td>
+<td>prototypes, up to a few hundred thousand chunks</td>
+<td>exact search, persisted to <code>index_dir</code></td>
+</tr>
+<tr>
+<td><code>qdrant</code></td>
+<td>large corpora, a dedicated vector DB</td>
+<td><code>pip install "ragpick[qdrant]"</code></td>
+</tr>
+<tr>
+<td><code>pgvector</code></td>
+<td>teams already running PostgreSQL</td>
+<td><code>pip install "psycopg[binary]"</code>, the <code>vector</code> extension</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><span class="nt">components</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">store</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pgvector</span>
+<span class="w">    </span><span class="nt">params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">dsn</span><span class="p">:</span><span class="w"> </span><span class="s">"${DATABASE_URL}"</span><span class="p p-Indicator">,</span><span class="nt"> table</span><span class="p">:</span><span class="w"> </span><span class="nv">support_chunks</span><span class="p p-Indicator">,</span><span class="nt"> index</span><span class="p">:</span><span class="w"> </span><span class="nv">hnsw</span><span class="p p-Indicator">}</span>
+</code></pre></div>
+<p><code>pgvector</code> creates the table (and an HNSW cosine index) on first insert and evaluates
+ragpick filters, including <code>allowed_groups</code>, in SQL over a JSONB <code>metadata</code> column, so
+access control happens inside PostgreSQL before ranking. Metadata values are compared
+as text.</p>
 <h2 id="access-control">Access control<a class="headerlink" href="#access-control" title="Permanent link">&para;</a></h2>
 <p>Document-level access control is built in. Attach groups to a document with Markdown front
 matter (or any loader's metadata):</p>

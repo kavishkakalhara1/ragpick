@@ -470,6 +470,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#generating-a-dataset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generating a dataset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#running" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -721,6 +732,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#generating-a-dataset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generating a dataset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#running" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -823,6 +845,21 @@ one or more configs over a question set and prints a comparison table.</p>
 </tbody>
 </table>
 <p>Blank lines and lines starting with <code>#</code> or <code>//</code> are ignored. Errors name the file and line.</p>
+<h2 id="generating-a-dataset">Generating a dataset<a class="headerlink" href="#generating-a-dataset" title="Permanent link">&para;</a></h2>
+<p>No questions yet? Generate a starter set from your documents:</p>
+<div class="highlight"><pre><span></span><code>ragpick<span class="w"> </span>generate-eval<span class="w"> </span>./docs<span class="w"> </span>-o<span class="w"> </span>eval.jsonl<span class="w"> </span>--count<span class="w"> </span><span class="m">30</span><span class="w"> </span>-c<span class="w"> </span>rag.yaml
+</code></pre></div>
+<ul>
+<li>With a real LLM generator, each sampled chunk becomes a natural question and a short
+  reference answer. Offline (<code>--mode heuristic</code>), questions come from section headings
+  ("How do I reset your password?"), codes ("What does E-1042 mean?") and titles.</li>
+<li>Chunks are sampled round-robin across documents (<code>--seed</code> makes it reproducible), using
+  the config's loader and chunker, so <code>relevant_doc_ids</code> match what <code>ingest</code> produces.</li>
+<li>Questions from documents with <code>allowed_groups</code> get those <code>groups</code>, so evaluation runs
+  with the right permissions.</li>
+<li><strong>Review the file.</strong> Delete vague questions, fix answers, and add the hard cases your
+  users really ask.</li>
+</ul>
 <h2 id="running">Running<a class="headerlink" href="#running" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="c1"># compare two configs; each gets a temporary index built from --data</span>
 ragpick<span class="w"> </span><span class="nb">eval</span><span class="w"> </span>examples/eval.jsonl<span class="w"> </span><span class="se">\</span>
