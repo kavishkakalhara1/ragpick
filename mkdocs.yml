@@ -28,6 +28,7 @@ nav:
   - Config reference: config-reference.md
   - Writing a plugin: plugins.md
   - Evaluation: evaluation.md
+  - LangChain & LlamaIndex: adapters.md
   - Design decisions: decisions.md
 
 markdown_extensions:

@@ -67,8 +67,9 @@ Preview the docs with `mkdocs serve`.
 
 - **Loaders**: HTML, DOCX, Notion/Confluence exports, CSV-as-documents.
 - **Stores**: pgvector, Chroma, LanceDB, Elasticsearch/OpenSearch (with filter push-down).
-- **Blueprints**: `parent_child` is next on the roadmap.
-- **Embedders and generators**: Cohere, Voyage, Bedrock, Azure OpenAI.
+- **Blueprints**: `corrective` and `sql` are next on the roadmap.
+- **Embedders and generators**: Cohere, Voyage, Bedrock, Azure OpenAI (or use them today
+  through the LangChain / LlamaIndex adapters).
 - **Eval**: more metrics (context recall vs `ground_truth`, citation accuracy).
 
 ## Releasing (maintainers)

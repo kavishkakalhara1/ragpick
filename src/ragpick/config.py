@@ -58,6 +58,10 @@ class Requirements(_Strict):
     keyword_heavy: bool = Field(
         False, description="Queries rely on exact terms: product codes, legal terms, IDs."
     )
+    long_documents: bool = Field(
+        False,
+        description="Documents are long and structured (manuals, policies, contracts).",
+    )
     latency: Latency = Field("normal", description="`low` disables expensive stages.")
     needs_citations: bool = Field(True, description="Answers must cite their sources.")
     access_control: bool = Field(

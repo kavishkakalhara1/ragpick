@@ -1,11 +1,27 @@
 metadata:
   name: parent_child
   description: >-
-    Retrieve small child chunks for precision, then pass their larger parent
-    sections to the generator for context.
+    Index small child chunks for precise search (hybrid BM25 + vector by default),
+    then pass their larger parent sections to the generator so answers keep the
+    surrounding context.
   best_for:
     - long structured documents (manuals, policies, contracts)
     - questions whose answer needs surrounding context
   tradeoffs:
-    - larger prompts and higher token cost
-  status: planned
+    - larger prompts and higher token cost per query
+    - parent text is stored with every child chunk (more index storage)
+  status: stable
+defaults:
+  components:
+    loader: {type: directory, params: {glob: "**/*"}}
+    chunker:
+      type: parent_child
+      params: {parent_size: 2000, parent_overlap: 0, child_size: 400, child_overlap: 50}
+    embedder: {type: fake, params: {dimension: 256}}
+    store: {type: memory}
+    keyword_index: {type: bm25, params: {k1: 1.5, b: 0.75}}
+    retriever: {type: parent_child, params: {k: 5, base: hybrid, rrf_k: 60}}
+    reranker: {type: none}
+    generator: {type: fake}
+  query:
+    top_k: 3

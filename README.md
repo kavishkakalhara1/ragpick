@@ -52,6 +52,12 @@ ragpick recommend --config examples/hybrid.yaml
 ragpick eval examples/eval.jsonl --config examples/naive.yaml --config examples/hybrid.yaml
 ```
 
+Or let `ragpick bench` try every stable blueprint on your data and pick the winner:
+
+```bash
+ragpick bench examples/eval.jsonl --data examples/data --write best.yaml
+```
+
 ```text
            Evaluation results
 ┏━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━┓
@@ -115,7 +121,7 @@ allowed_groups: [support]
 |---|---|---|
 | `naive` | ✅ stable | prototypes, small corpora |
 | `hybrid` | ✅ stable | **default for commercial systems**; keyword-heavy domains (BM25 + vector + RRF, optional cross-encoder) |
-| `parent_child` | 🗺 planned | long structured documents |
+| `parent_child` | ✅ stable | long structured documents: search small chunks, answer from whole sections |
 | `sql` | 🗺 planned | structured data, analytics questions |
 | `graph` | 🗺 planned | multi-hop and global questions (GraphRAG) |
 | `agentic` | 🗺 planned | multi-step questions and tool use |
@@ -131,6 +137,7 @@ allowed_groups: [support]
 | `ragpick ingest PATH` | load, chunk, embed, index, persist |
 | `ragpick query "…"` | answer with citations (`--groups`, `--show-contexts`) |
 | `ragpick eval DATASET -c a.yaml -c b.yaml` | comparison table (`--output results.json/.csv`) |
+| `ragpick bench DATASET --data DOCS` | try every stable blueprint, pick the winner (`--write rag.yaml`) |
 | `ragpick validate` | print the merged config (secrets masked) |
 
 ## Optional extras
@@ -146,16 +153,33 @@ allowed_groups: [support]
 
 The Ollama generator needs no extra.
 
+## LangChain and LlamaIndex
+
+Use their loaders, embedding models, retrievers and LLMs as ragpick components, with no
+extra dependency in ragpick:
+
+```yaml
+components:
+  embedder:
+    type: langchain
+    params: {class_path: langchain_openai.OpenAIEmbeddings, kwargs: {model: text-embedding-3-small}}
+  generator:
+    type: llamaindex
+    params: {class_path: llama_index.llms.openai.OpenAI, kwargs: {model: gpt-4o-mini}}
+```
+
+See [docs/adapters.md](docs/adapters.md).
+
 ## Documentation
 
 [Concepts](docs/concepts.md) · [Blueprints](docs/blueprints.md) ·
 [Config reference](docs/config-reference.md) · [Writing a plugin](docs/plugins.md) ·
-[Evaluation](docs/evaluation.md) · [Design decisions](docs/decisions.md)
+[Evaluation](docs/evaluation.md) · [LangChain & LlamaIndex](docs/adapters.md) ·
+[Design decisions](docs/decisions.md)
 
 ## Roadmap
 
-- **v0.2**: `parent_child` blueprint, `ragpick bench` (automatic blueprint comparison),
-  LangChain and LlamaIndex adapters
+- **v0.2** ✅: `parent_child` blueprint, `ragpick bench`, LangChain and LlamaIndex adapters
 - **v0.3**: `sql` and `corrective` blueprints, tracing, caching
 - **Later**: `graph` and `agentic` blueprints, `ragpick serve` HTTP API, multi-tenancy,
   TypeScript SDK

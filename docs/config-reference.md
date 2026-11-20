@@ -32,6 +32,7 @@ What the application needs. Used by the selector (`ragpick recommend`).
 | `data_types` | list[str] | `['markdown']` | Kinds of source data, e.g. markdown, pdf, html, sql, csv. |
 | `corpus_size` | `small` \| `medium` \| `large` | `'small'` | small (<1k chunks), medium, or large (>100k chunks). |
 | `keyword_heavy` | bool | `False` | Queries rely on exact terms: product codes, legal terms, IDs. |
+| `long_documents` | bool | `False` | Documents are long and structured (manuals, policies, contracts). |
 | `latency` | `low` \| `normal` | `'normal'` | `low` disables expensive stages. |
 | `needs_citations` | bool | `True` | Answers must cite their sources. |
 | `access_control` | bool | `False` | Documents are restricted to groups (`allowed_groups` metadata). |

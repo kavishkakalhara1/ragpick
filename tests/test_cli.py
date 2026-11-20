@@ -101,6 +101,7 @@ def test_init_interactive(workdir: Path) -> None:
             "markdown,pdf",  # data types
             "medium",  # corpus size
             "y",  # keyword heavy
+            "n",  # long documents
             "low",  # latency
             "y",  # citations
             "y",  # access control

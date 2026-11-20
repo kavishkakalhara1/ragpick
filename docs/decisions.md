@@ -89,6 +89,32 @@ interfaces extensible. Each decision is listed here so it can be revisited.
 30. **Judge failures and query errors are recorded per row** and counted in `errors`; they
     don't abort the run.
 
+## v0.2
+
+33. **Parent text lives in child metadata** (`parent_id`, `parent_text`) instead of a new
+    "document store" interface. It costs storage, but works unchanged with every
+    `VectorStore`, BM25 and persistence path, including Qdrant.
+34. **`parent_child` retriever wraps a base retriever** (`hybrid` default, or `vector`) and
+    fetches `child_k` (default `4 * k`) children to find `k` distinct parents. Parent
+    contexts get the best child's score and keep the child's `source`.
+35. **Selector: `long_documents` (priority 60) beats `keyword_heavy` (50)**, because
+    `parent_child` already uses hybrid search for children. Structured data (100) still wins.
+36. **`ragpick bench` uses one `top_k` for every blueprint** (base config's, or 5), otherwise
+    metrics are not comparable. The base config supplies providers; architecture keys
+    (`chunker`, `keyword_index`, `retriever`, `reranker`) always come from each blueprint.
+    Ties on the metric go to lower p50 latency. The written winner config is built from
+    the *uninterpolated* base YAML, so `${ENV_VAR}` secrets are never expanded into it.
+37. **Adapters depend on nothing.** They call public methods (`embed_documents`, `invoke`,
+    `get_text_embedding_batch`, …) and build objects from `class_path` + `kwargs`, so
+    ragpick doesn't pin LangChain/LlamaIndex versions. The inner constructor arguments
+    are called `kwargs` to avoid confusion with the component's own `params`.
+38. **External retrievers are post-filtered** for metadata filters and `allowed_groups`,
+    because they can't apply ragpick filters themselves.
+39. **`embed_query` is an optional embedder method**, used by retrievers for queries when
+    present (asymmetric models), so the `Embedder` protocol stays unchanged.
+40. **setup-uv is pinned to an exact version** (`v10.3.3`) because it no longer publishes
+    major tags, and sets `activate-environment: true`, which newer versions no longer imply.
+
 ## Tooling
 
 31. **`types-PyYAML` is not a dev dependency** (it wasn't in the approved list), so mypy

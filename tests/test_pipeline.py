@@ -165,7 +165,10 @@ def test_component_not_implementing_interface(tmp_path: Path) -> None:
 
 
 def test_unknown_component_type(tmp_path: Path) -> None:
-    with pytest.raises(ComponentNotFoundError, match="Available generators: fake, ollama, openai"):
+    with pytest.raises(
+        ComponentNotFoundError,
+        match="Available generators: fake, langchain, llamaindex, ollama, openai",
+    ):
         make(tmp_path, components={"generator": {"type": "gpt5"}})
 
 

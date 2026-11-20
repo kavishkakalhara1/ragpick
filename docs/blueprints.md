@@ -6,7 +6,7 @@ Run `ragpick blueprints` to see this list in your terminal.
 |---|---|---|
 | `naive` | stable | prototypes, small corpora, natural-language questions over prose |
 | `hybrid` | stable | the default for commercial systems; keyword-heavy domains; medium and large corpora |
-| `parent_child` | planned | long structured documents where answers need surrounding context |
+| `parent_child` | stable | long structured documents where answers need surrounding context |
 | `sql` | planned | structured data and analytics questions (text-to-SQL) |
 | `graph` | planned | multi-hop and "main themes" questions (GraphRAG) |
 | `agentic` | planned | complex questions needing several lookups or tools |
@@ -54,6 +54,33 @@ On the bundled example dataset (keyword-heavy support questions), `hybrid` beats
 ```bash
 ragpick eval examples/eval.jsonl --config examples/naive.yaml --config examples/hybrid.yaml
 ```
+
+## parent_child
+
+```text
+document ─→ parent sections (2000 chars) ─→ child chunks (400 chars) ─→ indexed
+query ─→ hybrid search over children ─→ dedupe by parent ─→ parent sections ─→ generator
+```
+
+Small chunks are precise to search but often too small to answer from; large chunks give
+context but match poorly. `parent_child` does both: it searches children and hands the
+LLM each matching child's whole parent section. Each child stores its parent's text in
+metadata (`parent_id`, `parent_text`), so it works with every store and needs no extra
+document store. Citations and contexts use parent ids (`manual.md#3`).
+
+```yaml
+blueprint: parent_child
+components:
+  chunker:
+    params: {parent_size: 2000, parent_overlap: 0, child_size: 400, child_overlap: 50}
+  retriever:
+    params: {k: 5, base: hybrid, child_k: 20}   # base: hybrid | vector
+query:
+  top_k: 3        # parents are big: fewer contexts keep prompts reasonable
+```
+
+Trade-offs: bigger prompts, and parent text is stored once per child. Set
+`requirements.long_documents: true` and `ragpick recommend` will suggest it.
 
 ## Adding a blueprint
 

@@ -96,6 +96,7 @@ class Registry:
         if not self._builtins_loaded:
             self._builtins_loaded = True
             importlib.import_module("ragpick.components")
+            importlib.import_module("ragpick.adapters")
         if not self._plugins_loaded:
             self.load_plugins()
 

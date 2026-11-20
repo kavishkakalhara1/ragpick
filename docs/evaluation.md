@@ -44,6 +44,33 @@ report = evaluate(Pipeline.from_yaml("rag.yaml"), load_dataset("eval.jsonl"))
 print(report.metrics)
 ```
 
+## Bench: try every blueprint
+
+`ragpick bench` answers "which blueprint should I use?" with data. It runs every stable
+blueprint on your documents and questions, using the same models and the same `top_k`,
+and ranks them:
+
+```bash
+ragpick bench eval.jsonl --data ./docs --config rag.yaml --metric mrr --write best.yaml
+```
+
+- **Providers** (loader, embedder, store, generator, `eval` settings) come from the base
+  `--config` (default: `./rag.yaml` if present, otherwise offline fake components).
+- **Architecture** (chunker, keyword index, retriever, reranker) comes from each blueprint.
+- `--metric` picks the winner: `hit_rate@k`, `mrr` (default), `precision@k`, or, with a
+  judge, `faithfulness` / `answer_relevance`. Ties go to the lower median latency.
+- `-b NAME` (repeatable) limits the candidates; `--top-k` overrides k for all of them.
+- `--write best.yaml` saves the winner's config: your providers plus `blueprint: <winner>`.
+  Secrets stay as `${ENV_VAR}` references.
+- Each candidate gets a temporary index; your real indexes are never touched.
+
+```python
+from ragpick.eval.bench import run_bench
+
+result = run_bench("eval.jsonl", "./docs", base_config="rag.yaml", metric="mrr")
+print(result.winner, result.ranking)
+```
+
 ## Metrics
 
 **Retrieval** (no LLM needed). These are computed over the ranked contexts mapped to their

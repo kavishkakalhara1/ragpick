@@ -9,9 +9,23 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from ragpick.interfaces import Embedder, KeywordIndex, VectorStore
-from ragpick.models import RetrievedChunk
+from ragpick.components.chunkers import PARENT_ID_KEY, PARENT_TEXT_KEY
+from ragpick.interfaces import Embedder, KeywordIndex, Retriever, VectorStore
+from ragpick.models import Chunk, RetrievedChunk
 from ragpick.registry import register
+
+
+def embed_query(embedder: Embedder, query: str) -> list[float]:
+    """Embed a search query, using ``embedder.embed_query`` when the embedder has one.
+
+    Asymmetric models (E5, Cohere, LangChain/LlamaIndex embeddings) embed queries
+    differently from documents; ``embed_query`` is an optional extension of the
+    :class:`~ragpick.interfaces.Embedder` protocol.
+    """
+    method = getattr(embedder, "embed_query", None)
+    if callable(method):
+        return [float(x) for x in method(query)]
+    return embedder.embed([query])[0]
 
 
 def reciprocal_rank_fusion(
@@ -61,8 +75,7 @@ class VectorRetriever:
         self, query: str, k: int | None = None, filters: dict[str, Any] | None = None
     ) -> list[RetrievedChunk]:
         """Top-``k`` chunks by vector similarity."""
-        vector = self.embedder.embed([query])[0]
-        return self.store.search(vector, k or self.k, filters)
+        return self.store.search(embed_query(self.embedder, query), k or self.k, filters)
 
 
 @register("retriever", "keyword")
@@ -116,3 +129,77 @@ class HybridRetriever:
         dense = self.vector.retrieve(query, n, filters)
         sparse = self.keyword.retrieve(query, n, filters)
         return reciprocal_rank_fusion([dense, sparse], self.rrf_k, self.weights)[:k]
+
+
+def expand_to_parents(results: Sequence[RetrievedChunk], k: int) -> list[RetrievedChunk]:
+    """Replace child chunks with their parent sections, deduplicated, best first.
+
+    A parent's score is its best child's score. Results without parent metadata are
+    passed through unchanged.
+    """
+    parents: list[RetrievedChunk] = []
+    seen: set[str] = set()
+    for item in results:
+        meta = item.chunk.metadata
+        parent_id = meta.get(PARENT_ID_KEY)
+        if parent_id is None:
+            if item.chunk.id not in seen:
+                seen.add(item.chunk.id)
+                parents.append(item)
+        elif parent_id not in seen:
+            seen.add(parent_id)
+            parent_meta = {
+                key: value
+                for key, value in meta.items()
+                if key not in (PARENT_TEXT_KEY, "chunk_index")
+            }
+            parent_meta["matched_child"] = item.chunk.id
+            parent = Chunk(
+                id=str(parent_id),
+                doc_id=item.chunk.doc_id,
+                text=str(meta.get(PARENT_TEXT_KEY, item.chunk.text)),
+                metadata=parent_meta,
+            )
+            parents.append(RetrievedChunk(chunk=parent, score=item.score, source=item.source))
+        if len(parents) >= k:
+            break
+    return parents
+
+
+@register("retriever", "parent_child")
+class ParentChildRetriever:
+    """Search small child chunks, return their larger parent sections.
+
+    ``base`` selects the child search strategy: ``"hybrid"`` (default, BM25 + vector
+    with RRF) or ``"vector"``. ``child_k`` children are fetched (default ``4 * k``) so
+    that ``k`` distinct parents are usually found. Use with the ``parent_child``
+    chunker. Filters (and access control) apply to the child search.
+    """
+
+    def __init__(
+        self,
+        embedder: Embedder,
+        store: VectorStore,
+        keyword_index: KeywordIndex,
+        k: int = 5,
+        base: str = "hybrid",
+        child_k: int | None = None,
+        rrf_k: int = 60,
+    ) -> None:
+        if base not in ("hybrid", "vector"):
+            raise ValueError(f"base must be 'hybrid' or 'vector', got {base!r}")
+        self.k = k
+        self.child_k = child_k
+        self.base: Retriever = (
+            HybridRetriever(embedder, store, keyword_index, k=k, rrf_k=rrf_k)
+            if base == "hybrid"
+            else VectorRetriever(embedder, store, k=k)
+        )
+
+    def retrieve(
+        self, query: str, k: int | None = None, filters: dict[str, Any] | None = None
+    ) -> list[RetrievedChunk]:
+        """Top-``k`` parent sections."""
+        k = k or self.k
+        children = self.base.retrieve(query, self.child_k or 4 * k, filters)
+        return expand_to_parents(children, k)

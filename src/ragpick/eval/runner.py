@@ -105,6 +105,9 @@ def parse_judge_option(value: str | None) -> ComponentSpec | None:
 
 def _model_name(config: RagConfig) -> str:
     spec = config.components.generator
+    nested = spec.params.get("kwargs")
+    if "model" not in spec.params and isinstance(nested, dict) and "model" in nested:
+        return str(nested["model"])  # adapters: params.kwargs.model
     return str(spec.params.get("model", spec.type))
 
 
@@ -193,14 +196,14 @@ def evaluate(
 
 
 def evaluate_configs(
-    config_paths: Sequence[str | Path],
+    config_paths: Sequence[str | Path | RagConfig],
     dataset_path: str | Path,
     *,
     data: str | Path | None = None,
     judge: ComponentSpec | None = None,
     progress: Callable[[str, int, int], None] | None = None,
 ) -> list[EvalReport]:
-    """Evaluate several configs on the same dataset.
+    """Evaluate several configs (files or :class:`RagConfig` objects) on one dataset.
 
     Indexing per config:
 
@@ -218,20 +221,27 @@ def evaluate_configs(
             overrides: dict[str, Any] = {}
             if data is not None:
                 overrides["index_dir"] = str(Path(tmp) / f"index-{n}")
-            config = load_config(path, overrides)
+            if isinstance(path, RagConfig):
+                config = path.model_copy(deep=True).with_base_dir(path.base_dir)
+                if data is not None:
+                    config.index_dir = overrides["index_dir"]
+                source = config.name
+            else:
+                config = load_config(path, overrides)
+                source = str(path)
             pipeline = Pipeline(config)
             if data is not None:
                 pipeline.ingest(data)
             elif not pipeline.has_index():
                 if config.data is None:
                     raise ConfigError(
-                        f"{path}: no index at {pipeline.index_dir} and no `data` path in the "
+                        f"{source}: no index at {pipeline.index_dir} and no `data` path in the "
                         "config. Run `ragpick ingest`, set `data`, or pass --data."
                     )
                 pipeline.ingest()
-            label = (
-                config.name if config.name not in labels else f"{config.name} ({Path(path).name})"
-            )
+            label = config.name
+            if label in labels:
+                label = f"{label} ({Path(source).name})" if source != label else f"{label} #{n + 1}"
             labels.add(label)
             judge_ = build_judge(judge or config.eval.judge)
 
@@ -245,7 +255,7 @@ def evaluate_configs(
                     dataset,
                     judge=judge_,
                     label=label,
-                    config_path=str(path),
+                    config_path=None if isinstance(path, RagConfig) else str(path),
                     progress=report_progress,
                 )
             )

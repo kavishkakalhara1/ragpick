@@ -111,11 +111,36 @@ def test_access_control_with_store_without_filters_warns() -> None:
     assert not recommend({}, store="dumb", component_registry=reg).warnings
 
 
+def test_long_documents_choose_parent_child() -> None:
+    r = rec(long_documents=True, keyword_heavy=True, corpus_size="large")
+    assert r.blueprint == "parent_child"
+    assert any("parent sections" in reason for reason in r.reasons)
+    assert "hybrid" in r.alternatives
+    # hybrid's own reasons are hidden because it lost the vote
+    assert not any("A large corpus" in reason for reason in r.reasons)
+
+
+def test_long_documents_with_low_latency_warns() -> None:
+    r = rec(long_documents=True, latency="low")
+    assert r.blueprint == "parent_child"
+    assert any("parent_size" in w for w in r.warnings)
+    assert r.overrides == {"reranker": {"type": "none"}}
+    assert not any("parent_size" in w for w in rec(long_documents=True).warnings)
+
+
+def test_structured_data_still_beats_long_documents() -> None:
+    r = rec(data_types=["sql"], long_documents=True)
+    assert r.blueprint == "hybrid"  # sql (planned) wins the vote, falls back to hybrid
+
+
 def test_pdf_extra_warning_and_parent_child_alternative() -> None:
     missing = rec(installed=False, data_types=["pdf"])
     assert any("ragpick[pdf]" in w for w in missing.warnings)
     assert any(alt.startswith("parent_child") for alt in missing.alternatives)
     assert not rec(installed=True, data_types=["pdf"]).warnings
+    long_pdfs = rec(data_types=["pdf"], long_documents=True)
+    assert long_pdfs.blueprint == "parent_child"
+    assert "pdf_parent_child_hint" not in long_pdfs.matched_rules
 
 
 def test_unknown_data_types_warn() -> None:

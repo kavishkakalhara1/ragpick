@@ -106,6 +106,18 @@ RULES: list[Rule] = [
         alternatives=("hybrid",),
     ),
     Rule(
+        id="long_documents",
+        when=lambda c: _r(c).long_documents,
+        blueprint="parent_child",
+        priority=60,
+        reason=(
+            "Long, structured documents: small child chunks are searched precisely "
+            "(hybrid BM25 + vector), and their full parent sections are passed to the "
+            "LLM so answers keep the surrounding context."
+        ),
+        alternatives=("hybrid",),
+    ),
+    Rule(
         id="keyword_heavy",
         when=lambda c: _r(c).keyword_heavy,
         blueprint="hybrid",
@@ -148,6 +160,14 @@ RULES: list[Rule] = [
             "typically adds 50-300 ms per query."
         ),
         overrides={"reranker": {"type": "none"}},
+    ),
+    Rule(
+        id="long_documents_low_latency",
+        when=lambda c: _r(c).long_documents and _r(c).latency == "low",
+        warning=(
+            "parent_child sends whole parent sections to the LLM; with a low-latency "
+            "target, lower `parent_size` or `query.top_k` to keep prompts small."
+        ),
     ),
     Rule(
         id="rerank_for_precision",
@@ -195,9 +215,9 @@ RULES: list[Rule] = [
         warning="PDF files need the pdf extra: pip install 'ragpick[pdf]'.",
     ),
     Rule(
-        id="long_documents",
-        when=lambda c: "pdf" in c.data_types,
-        alternatives=("parent_child (planned): small chunks for search, full sections as context",),
+        id="pdf_parent_child_hint",
+        when=lambda c: "pdf" in c.data_types and not _r(c).long_documents,
+        alternatives=("parent_child, if the PDFs are long manuals or contracts",),
     ),
     Rule(
         id="unknown_data_types",

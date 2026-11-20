@@ -137,3 +137,61 @@ class RecursiveChunker:
     def split(self, docs: Iterable[Document]) -> list[Chunk]:
         """Split every document."""
         return [c for doc in docs for c in _make_chunks(doc, self.split_text(doc.text))]
+
+
+#: Metadata keys written by :class:`ParentChildChunker` on every child chunk.
+PARENT_ID_KEY = "parent_id"
+PARENT_TEXT_KEY = "parent_text"
+
+
+@register("chunker", "parent_child")
+class ParentChildChunker:
+    """Two-level chunking for the ``parent_child`` blueprint.
+
+    Each document is split into large *parent* sections (``parent_size``), and each
+    parent into small *child* chunks (``child_size``). Only children are embedded and
+    indexed; each child carries ``parent_id`` and ``parent_text`` metadata, so a
+    retriever can search precisely on children and hand whole parents to the LLM.
+
+    Ids: parent ``"<doc_id>#<p>"``, child ``"<doc_id>#<p>.<c>"``.
+    """
+
+    def __init__(
+        self,
+        parent_size: int = 2000,
+        parent_overlap: int = 0,
+        child_size: int = 400,
+        child_overlap: int = 50,
+    ) -> None:
+        if child_size >= parent_size:
+            raise ValueError(
+                f"child_size ({child_size}) must be smaller than parent_size ({parent_size})"
+            )
+        self.parents = RecursiveChunker(parent_size, parent_overlap)
+        self.children = RecursiveChunker(child_size, child_overlap)
+
+    def split(self, docs: Iterable[Document]) -> list[Chunk]:
+        """Return child chunks (with parent text in metadata) for every document."""
+        out: list[Chunk] = []
+        for doc in docs:
+            for pi, parent_text in enumerate(
+                t.strip() for t in self.parents.split_text(doc.text) if t.strip()
+            ):
+                parent_id = f"{doc.id}#{pi}"
+                for ci, child_text in enumerate(
+                    t.strip() for t in self.children.split_text(parent_text) if t.strip()
+                ):
+                    out.append(
+                        Chunk(
+                            id=f"{parent_id}.{ci}",
+                            doc_id=doc.id,
+                            text=child_text,
+                            metadata={
+                                **doc.metadata,
+                                "chunk_index": len(out),
+                                PARENT_ID_KEY: parent_id,
+                                PARENT_TEXT_KEY: parent_text,
+                            },
+                        )
+                    )
+        return out

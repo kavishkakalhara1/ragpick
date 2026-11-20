@@ -7,14 +7,14 @@ A pipeline is made of small, swappable components. Each one is a `typing.Protoco
 
 | Kind | Protocol | Built-in types |
 |---|---|---|
-| `loader` | `load(path) -> Iterable[Document]` | `directory`, `text`, `pdf` |
-| `chunker` | `split(docs) -> list[Chunk]` | `recursive`, `fixed` |
-| `embedder` | `embed(texts)`, `dimension` | `fake`, `openai`, `sentence_transformers` |
+| `loader` | `load(path) -> Iterable[Document]` | `directory`, `text`, `pdf`, `langchain`, `llamaindex` |
+| `chunker` | `split(docs) -> list[Chunk]` | `recursive`, `fixed`, `parent_child` |
+| `embedder` | `embed(texts)`, `dimension` (optional `embed_query`) | `fake`, `openai`, `sentence_transformers`, `langchain`, `llamaindex` |
 | `store` | `add`, `search`, `delete`, `persist`, `load` | `memory`, `qdrant` |
 | `keyword_index` | `add`, `search`, `persist`, `load` | `bm25` |
-| `retriever` | `retrieve(query, k, filters)` | `vector`, `keyword`, `hybrid` |
+| `retriever` | `retrieve(query, k, filters)` | `vector`, `keyword`, `hybrid`, `parent_child`, `langchain`, `llamaindex` |
 | `reranker` | `rerank(query, chunks, top_n)` | `none`, `cross_encoder` |
-| `generator` | `generate(query, contexts) -> Answer` | `fake`, `openai`, `ollama` |
+| `generator` | `generate(query, contexts) -> Answer` | `fake`, `openai`, `ollama`, `langchain`, `llamaindex` |
 
 Data flows through these models: `Document` → `Chunk` → `RetrievedChunk` → `Answer`
 (text, `citations` as chunk ids, `contexts`, `usage`).
@@ -58,6 +58,7 @@ merged result with `ragpick validate`.
 
 | Situation | Effect |
 |---|---|
+| long, structured documents | `parent_child` |
 | small corpus, not keyword-heavy | `naive` |
 | keyword-heavy, or medium/large corpus | `hybrid` |
 | structured data (sql, csv, …) | `sql` (planned) → warns and falls back to `hybrid` |
@@ -65,6 +66,9 @@ merged result with `ragpick validate`.
 | `access_control` with a store that cannot filter | warning |
 | large corpus on the in-memory store | warning, suggests Qdrant |
 | pdf data without `ragpick[pdf]` | warning |
+
+To settle it with data instead of rules, `ragpick bench` runs every stable blueprint on
+your documents and questions; see [Evaluation](evaluation.md#bench-try-every-blueprint).
 
 Every recommendation lists **reasons**, **alternatives** and **warnings**. The rules live
 in `ragpick.selector.rules.RULES` and are easy to extend.

@@ -166,6 +166,7 @@ def _ask_requirements() -> Requirements:
         ["small", "medium", "large"],
     )
     keyword = _confirm("Do queries use exact terms (product codes, IDs, legal terms)?", False)
+    long_docs = _confirm("Are documents long and structured (manuals, policies, contracts)?", False)
     latency = _ask("Latency requirement", "normal", ["low", "normal"])
     citations = _confirm("Must answers cite their sources?", True)
     acl = _confirm("Are some documents restricted to certain user groups?", False)
@@ -174,6 +175,7 @@ def _ask_requirements() -> Requirements:
             "data_types": [d.strip() for d in data_types.split(",") if d.strip()],
             "corpus_size": corpus,
             "keyword_heavy": keyword,
+            "long_documents": long_docs,
             "latency": latency,
             "needs_citations": citations,
             "access_control": acl,
@@ -464,6 +466,89 @@ def eval_cmd(
     if output is not None:
         written = write_reports(reports, output)
         console.print(f"[green]✓[/] Wrote {written}")
+
+
+# --------------------------------------------------------------------------- bench
+@app.command()
+@friendly
+def bench(
+    dataset: Annotated[Path, typer.Argument(help="JSONL dataset of questions.")],
+    data: Annotated[Path, typer.Option(help="Documents to index for every blueprint.")],
+    config: Annotated[
+        Path | None,
+        typer.Option(
+            "--config", "-c", help="Base config for providers (default: rag.yaml if present)."
+        ),
+    ] = None,
+    blueprint: Annotated[
+        list[str] | None,
+        typer.Option("--blueprint", "-b", help="Blueprint to include (repeatable; default: all)."),
+    ] = None,
+    metric: Annotated[str, typer.Option(help="Metric that picks the winner.")] = "mrr",
+    top_k: Annotated[
+        int | None, typer.Option(help="Contexts per query for every blueprint.")
+    ] = None,
+    judge: Annotated[
+        str | None, typer.Option(help="LLM judge, e.g. openai:gpt-4o-mini (overrides eval.judge).")
+    ] = None,
+    output: Annotated[
+        Path | None, typer.Option("--output", "-o", help="Write results (.json or .csv).")
+    ] = None,
+    write: Annotated[
+        Path | None, typer.Option(help="Write the winning blueprint's config to this file.")
+    ] = None,
+) -> None:
+    """Run every stable blueprint on your data and recommend the best one."""
+    from ragpick.eval.bench import run_bench
+
+    if config is None and DEFAULT_CONFIG.exists():
+        config = DEFAULT_CONFIG
+    if config is None:
+        console.print("[dim]No base config; using fake offline components.[/]")
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        console=console,
+        transient=True,
+    ) as progress:
+        tasks: dict[str, Any] = {}
+
+        def on_progress(label: str, done: int, total: int) -> None:
+            if label not in tasks:
+                tasks[label] = progress.add_task(f"Benchmarking {label}", total=total)
+            progress.update(tasks[label], completed=done)
+
+        result = run_bench(
+            dataset,
+            data,
+            base_config=config,
+            blueprints=blueprint,
+            metric=metric,
+            top_k=top_k,
+            judge=parse_judge_option(judge),
+            progress=on_progress,
+        )
+    console.print(_results_table(result.reports))
+    best = result.report_for(result.winner)
+    score = _fmt_metric(result.metric, best.metrics[result.metric])
+    ranking = " > ".join(result.ranking)
+    console.print(
+        Panel(
+            f"[bold]Winner:[/] [cyan]{escape(result.winner)}[/] "
+            f"({escape(result.metric)} = {score})\n"
+            f"[bold]Ranking:[/] {escape(ranking)}",
+            title="ragpick bench",
+            expand=False,
+        )
+    )
+    if output is not None:
+        console.print(f"[green]✓[/] Wrote {write_reports(result.reports, output)}")
+    if write is not None:
+        if write.exists():
+            raise RagpickError(f"{write} already exists; choose another --write path")
+        write.write_text(result.winner_config, encoding="utf-8")
+        console.print(f"[green]✓[/] Wrote {write} (blueprint {result.winner})")
 
 
 # --------------------------------------------------------------------------- config check
