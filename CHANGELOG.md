@@ -6,6 +6,33 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-20
+
+### Added
+
+- `graph` blueprint (stable, GraphRAG local search): entities and relations are extracted
+  from every chunk at ingest (LLM, or an offline heuristic for codes, acronyms and names)
+  into a persisted knowledge graph; queries match the question's entities, expand them
+  `hops` steps, fuse graph-ranked chunks with hybrid search, and put a "knowledge graph
+  facts" context first. Facts are shown only when a chunk visible to the caller supports
+  them. `requirements.multi_hop` and a selector rule recommend it.
+- Streaming answers: `Pipeline.stream()` / `Router.stream()` yield `StreamEvent`s
+  (contexts → text deltas → final answer with citations). Streaming for OpenAI, Ollama,
+  LangChain, LlamaIndex and the fake generator; cached generators replay from the cache.
+  `ragpick query --stream`; `POST /query {"stream": true}` returns server-sent events
+  (ASGI and standard-library servers).
+- PostgreSQL backend for the `sql` blueprint (`database: postgresql://...`, needs
+  `psycopg`): read-only sessions with `statement_timeout`, a dangerous-function denylist,
+  and table-level access control enforced from the `EXPLAIN` plan (sees through views,
+  CTEs and subqueries). `schemas` retriever param.
+- `ChunkIndexer` and `StreamingGenerator` optional protocols; `"graph"` retrieval source.
+
+### Changed
+
+- Contexts with `metadata.synthetic` (e.g. graph facts) are excluded from retrieval metrics.
+- SQL backends raise a common `SQLQueryError` for retryable database errors; the SQL
+  prompt names the dialect.
+
 ## [0.4.0] - 2026-11-20
 
 ### Added
@@ -101,7 +128,8 @@ All notable changes to this project are documented here. The format follows
   relevance, latency percentiles, tokens and estimated cost; JSON/CSV output.
 - CLI: `init`, `recommend`, `blueprints`, `ingest`, `query`, `eval`, `validate`.
 
-[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.1.0...v0.2.0

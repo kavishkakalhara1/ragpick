@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -13,10 +13,11 @@ from pydantic import BaseModel
 
 from ragpick import interfaces, tracing
 from ragpick.cache import Cache, CachedEmbedder, wrap_generator
+from ragpick.components.generators import parse_citations
 from ragpick.config import ComponentSpec, RagConfig, build_config, load_config
 from ragpick.errors import ConfigError, IndexNotFoundError
 from ragpick.filters import acl_filter
-from ragpick.models import Answer, RetrievedChunk
+from ragpick.models import Answer, RetrievedChunk, StreamEvent, Usage
 from ragpick.registry import Registry, registry
 from ragpick.tracing import set_attributes, span
 
@@ -304,6 +305,11 @@ class Pipeline:
             if isinstance(component, interfaces.DocumentIndexer):
                 component.index_documents(docs)
 
+        for component in (self.retriever, self.reranker):
+            if isinstance(component, interfaces.ChunkIndexer):
+                with span("index_chunks", component=type(component).__name__):
+                    component.index_chunks(chunks)
+
         doc_ids = [d.id for d in docs]
         self.store.delete(doc_ids)
         self.store.add(chunks)
@@ -383,6 +389,42 @@ class Pipeline:
             except Exception as exc:  # exporters must never break queries
                 logger.warning("Trace exporter %s failed: %s", type(exporter).__name__, exc)
         return answer
+
+    def stream(
+        self,
+        question: str,
+        *,
+        groups: list[str] | None = None,
+        filters: dict[str, Any] | None = None,
+        top_k: int | None = None,
+    ) -> Iterator[StreamEvent]:
+        """Answer ``question`` as a stream of events: contexts, text deltas, final answer.
+
+        Generators without ``stream()`` produce a single delta. Streams are not traced.
+        """
+        start = time.perf_counter()
+        contexts = self.retrieve(question, groups=groups, filters=filters, top_k=top_k)
+        yield StreamEvent(type="contexts", contexts=contexts)
+        parts: list[str] = []
+        usage = Usage()
+        if isinstance(self.generator, interfaces.StreamingGenerator):
+            for item in self.generator.stream(question, contexts):
+                if isinstance(item, Usage):
+                    usage = item
+                elif item:
+                    parts.append(item)
+                    yield StreamEvent(type="delta", text=item)
+        else:
+            answer = self.generator.generate(question, contexts)
+            parts.append(answer.text)
+            usage = answer.usage
+            yield StreamEvent(type="delta", text=answer.text)
+        text = "".join(parts).strip()
+        usage = usage.model_copy(update={"latency_ms": (time.perf_counter() - start) * 1000})
+        final = Answer(
+            text=text, citations=parse_citations(text, contexts), contexts=contexts, usage=usage
+        )
+        yield StreamEvent(type="answer", answer=final)
 
     def _query(
         self,

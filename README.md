@@ -122,8 +122,8 @@ allowed_groups: [support]
 | `naive` | ✅ stable | prototypes, small corpora |
 | `hybrid` | ✅ stable | **default for commercial systems**; keyword-heavy domains (BM25 + vector + RRF, optional cross-encoder) |
 | `parent_child` | ✅ stable | long structured documents: search small chunks, answer from whole sections |
-| `sql` | ✅ stable | structured data (CSV, SQLite): read-only text-to-SQL with table-level access control |
-| `graph` | 🗺 planned | multi-hop and global questions (GraphRAG) |
+| `sql` | ✅ stable | structured data (CSV, SQLite, PostgreSQL): read-only text-to-SQL with table-level access control |
+| `graph` | ✅ stable | multi-hop questions: knowledge graph + hybrid search (GraphRAG local search) |
 | `agentic` | 🗺 planned | multi-step questions and tool use |
 | `corrective` | ✅ stable | grades retrieval, retries, and says "I don't know" instead of guessing |
 
@@ -135,7 +135,7 @@ allowed_groups: [support]
 | `ragpick recommend` | blueprint, reasons, alternatives, warnings |
 | `ragpick blueprints` | catalogue and roadmap |
 | `ragpick ingest PATH` | load, chunk, embed, index, persist |
-| `ragpick query "…"` | answer with citations (`--groups`, `--show-contexts`, `--trace`) |
+| `ragpick query "…"` | answer with citations (`--groups`, `--show-contexts`, `--trace`, `--stream`) |
 | `ragpick eval DATASET -c a.yaml -c b.yaml` | comparison table (`--output results.json/.csv`) |
 | `ragpick bench DATASET --data DOCS` | try every stable blueprint, pick the winner (`--write rag.yaml`) |
 | `ragpick validate` | print the merged config (secrets masked) |
@@ -177,6 +177,9 @@ ragpick serve -c router.yaml
 curl -s localhost:8000/query -H "Authorization: Bearer $PORTAL_KEY" \
   -d '{"question": "What does error E-1042 mean?"}'
 ```
+
+Answers can stream token by token: `ragpick query "…" --stream`, `pipeline.stream(...)`,
+or `POST /query {"stream": true}` (server-sent events).
 
 See [docs/routing.md](docs/routing.md) and [docs/serving.md](docs/serving.md).
 
@@ -236,9 +239,11 @@ See [docs/adapters.md](docs/adapters.md).
 - **v0.3** ✅: `sql` and `corrective` blueprints, tracing, caching
 - **v0.4** ✅: query routing between `sql` and document pipelines, `ragpick serve` HTTP API,
   OpenTelemetry trace exporter
-- **v0.5**: `graph` blueprint (GraphRAG), streaming answers (`/query` server-sent events),
-  Postgres backend for `sql`
-- **Later**: `agentic` blueprint, multi-tenancy, TypeScript SDK
+- **v0.5** ✅: `graph` blueprint (GraphRAG local search), streaming answers, PostgreSQL
+  backend for `sql`
+- **v0.6**: GraphRAG global search (community summaries), `agentic` blueprint,
+  per-tenant indexes
+- **Later**: TypeScript SDK, more vector stores (pgvector, Chroma, LanceDB)
 
 ## Contributing
 

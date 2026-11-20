@@ -12,10 +12,10 @@ see :func:`ragpick.filters.matches_filters`.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from typing import Any, Protocol, runtime_checkable
 
-from ragpick.models import Answer, Chunk, Completion, Document, RetrievedChunk
+from ragpick.models import Answer, Chunk, Completion, Document, RetrievedChunk, Usage
 
 Filters = dict[str, Any]
 
@@ -124,6 +124,31 @@ class Generator(Protocol):
 
     def generate(self, query: str, contexts: list[RetrievedChunk]) -> Answer:
         """Answer ``query`` using only ``contexts``."""
+        ...
+
+
+@runtime_checkable
+class StreamingGenerator(Protocol):
+    """Optional: a generator that can stream its answer.
+
+    ``stream`` yields text pieces and, optionally, one final :class:`Usage` item.
+    """
+
+    def stream(self, query: str, contexts: list[RetrievedChunk]) -> Iterator[str | Usage]:
+        """Stream the answer to ``query`` from ``contexts``."""
+        ...
+
+
+@runtime_checkable
+class ChunkIndexer(Protocol):
+    """Optional: a component that indexes chunks itself during ingest (e.g. a graph).
+
+    Called with the chunks of every (re-)ingested document after chunking; the
+    component replaces any earlier chunks of the same documents.
+    """
+
+    def index_chunks(self, chunks: list[Chunk]) -> None:
+        """Index ``chunks``."""
         ...
 
 

@@ -23,7 +23,7 @@ import asyncio
 import hmac
 import json
 import logging
-from collections.abc import Awaitable, Callable, MutableMapping
+from collections.abc import Awaitable, Callable, Iterator, MutableMapping
 from dataclasses import dataclass, field
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -41,7 +41,7 @@ from ragpick.errors import (
     ProviderError,
     RagpickError,
 )
-from ragpick.models import Answer, RetrievedChunk
+from ragpick.models import Answer, RetrievedChunk, StreamEvent
 from ragpick.pipeline import Pipeline
 from ragpick.router import Engine
 
@@ -60,15 +60,18 @@ class QueryRequest(BaseModel):
     filters: dict[str, Any] | None = None
     top_k: int | None = Field(None, ge=1, le=50)
     trace: bool = False
+    stream: bool = False
 
 
 @dataclass
 class Response:
-    """A JSON HTTP response."""
+    """A JSON HTTP response, or a server-sent-events stream when ``stream`` is set."""
 
     status: int
     body: Any
     headers: dict[str, str] = field(default_factory=dict)
+    stream: Iterator[bytes] | None = None
+    content_type: str = "application/json"
 
     def encoded(self) -> bytes:
         """The body as UTF-8 JSON."""
@@ -82,6 +85,11 @@ class HTTPError(Exception):
         super().__init__(message)
         self.status = status
         self.message = message
+
+
+def sse(event: str, data: Any) -> bytes:
+    """Encode one server-sent event."""
+    return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n".encode()
 
 
 def context_json(ctx: RetrievedChunk) -> dict[str, Any]:
@@ -191,7 +199,45 @@ class App:
             ]
         return Response(200, body)
 
+    def _stream(self, req: QueryRequest, groups: list[str] | None) -> Response:
+        events = self.engine.stream(
+            req.question, groups=groups, filters=req.filters, top_k=req.top_k
+        )
+        first = next(events)  # runs retrieval now, so its errors get a proper status code
+
+        def encode(event: StreamEvent) -> bytes:
+            if event.type == "contexts":
+                return sse("contexts", {"contexts": [context_json(c) for c in event.contexts]})
+            if event.type == "delta":
+                return sse("delta", {"text": event.text})
+            assert event.answer is not None
+            return sse("answer", answer_json(event.answer, include_trace=False))
+
+        def body() -> Iterator[bytes]:
+            yield encode(first)
+            try:
+                for event in events:
+                    yield encode(event)
+            except ProviderError as exc:
+                logger.warning("Provider error while streaming: %s", exc)
+                yield sse("error", {"error": "The model provider failed; see server logs."})
+            except Exception:
+                logger.exception("Error while streaming")
+                yield sse("error", {"error": "Internal server error"})
+
+        return Response(
+            200,
+            None,
+            {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            stream=body(),
+            content_type="text/event-stream",
+        )
+
     def _query(self, req: QueryRequest, groups: list[str] | None) -> Response:
+        if req.stream:
+            if req.trace:
+                raise HTTPError(400, "Streaming responses cannot include traces")
+            return self._stream(req, groups)
         trace = req.trace and self.config.allow_traces
         if req.trace and not self.config.allow_traces:
             raise HTTPError(403, "Traces are disabled on this server (serve.allow_traces)")
@@ -295,13 +341,19 @@ def asgi_app(app: App) -> Callable[[Scope, Receive, Send], Awaitable[None]]:
             response = await asyncio.to_thread(
                 app.handle, scope["method"], scope.get("path", "/"), headers, b"".join(chunks)
             )
-        payload = b"" if response.status == 204 else response.encoded()
-        out_headers = [(b"content-type", b"application/json")] + [
+        out_headers = [(b"content-type", response.content_type.encode("latin-1"))] + [
             (k.lower().encode("latin-1"), v.encode("latin-1")) for k, v in response.headers.items()
         ]
         await send(
             {"type": "http.response.start", "status": response.status, "headers": out_headers}
         )
+        if response.stream is not None:
+            stream = response.stream
+            while (chunk := await asyncio.to_thread(next, stream, None)) is not None:
+                await send({"type": "http.response.body", "body": chunk, "more_body": True})
+            await send({"type": "http.response.body", "body": b""})
+            return
+        payload = b"" if response.status == 204 else response.encoded()
         await send({"type": "http.response.body", "body": payload})
 
     return application
@@ -324,12 +376,18 @@ def make_server(app: App, host: str, port: int) -> ThreadingHTTPServer:
                 body = self.rfile.read(length) if length else b""
                 headers = {k.lower(): v for k, v in self.headers.items()}
                 response = app.handle(self.command, self.path, headers, body)
-            payload = b"" if response.status == 204 else response.encoded()
             self.send_response(response.status, HTTPStatus(response.status).phrase)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(payload)))
+            self.send_header("Content-Type", response.content_type)
             for k, v in response.headers.items():
                 self.send_header(k, v)
+            if response.stream is not None:  # HTTP/1.0: the connection closes at the end
+                self.end_headers()
+                for chunk in response.stream:
+                    self.wfile.write(chunk)
+                    self.wfile.flush()
+                return
+            payload = b"" if response.status == 204 else response.encoded()
+            self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self.wfile.write(payload)
 

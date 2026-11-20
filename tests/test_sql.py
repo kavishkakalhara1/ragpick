@@ -17,6 +17,7 @@ from ragpick.components.sql import (
     CsvLoader,
     NoChunker,
     SQLDatabase,
+    SQLQueryError,
     SQLRetriever,
     SQLSafetyError,
     extract_sql,
@@ -194,7 +195,7 @@ def test_ctes_and_subqueries_are_allowed(db: SQLDatabase) -> None:
 
 
 def test_sql_errors_propagate_for_retry(db: SQLDatabase) -> None:
-    with pytest.raises(sqlite3.OperationalError, match="no such column"):
+    with pytest.raises(SQLQueryError, match="no such column"):
         db.run("SELECT nope FROM orders", ALL)
 
 
@@ -230,7 +231,7 @@ def test_retriever_success_and_prompt(db: SQLDatabase, tmp_path: Path) -> None:
     assert "| 8 |" in ctx.chunk.text
     assert ctx.chunk.metadata["row_count"] == 1
     system, user = llm.prompts[0]
-    assert system == SQL_SYSTEM.format(max_rows=50)
+    assert system == SQL_SYSTEM.format(max_rows=50, dialect="SQLite")
     assert 'CREATE TABLE "orders"' in user
     assert "salaries" not in user  # hidden from callers outside hr
     assert root.find("execute_sql").attributes["rows"] == 1  # type: ignore[union-attr]

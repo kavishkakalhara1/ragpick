@@ -14,7 +14,7 @@ import logging
 import sqlite3
 import threading
 import time
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -170,6 +170,34 @@ class CachedGenerator:
         answer = self.inner.generate(query, contexts)
         self.cache.set(key, "generate", {"text": answer.text, "citations": answer.citations})
         return answer
+
+    def stream(self, query: str, contexts: list[RetrievedChunk]) -> Iterator[str | Usage]:
+        """Stream from the cache (one piece) or from the inner generator, caching the result."""
+        from ragpick.components.generators import parse_citations
+
+        start = time.perf_counter()
+        key = make_key("generate", self.fingerprint, [query, _context_payload(contexts)])
+        cached = self.cache.get(key)
+        if cached is not None:
+            yield str(cached["text"])
+            yield Usage(cached=True, latency_ms=(time.perf_counter() - start) * 1000)
+            return
+        parts: list[str] = []
+        inner_stream = getattr(self.inner, "stream", None)
+        if callable(inner_stream):
+            for item in inner_stream(query, contexts):
+                if isinstance(item, str):
+                    parts.append(item)
+                yield item
+        else:
+            answer = self.inner.generate(query, contexts)
+            parts.append(answer.text)
+            yield answer.text
+            yield answer.usage
+        text = "".join(parts).strip()
+        self.cache.set(
+            key, "generate", {"text": text, "citations": parse_citations(text, contexts)}
+        )
 
 
 class CachedCompleterGenerator(CachedGenerator):

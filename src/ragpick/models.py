@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from ragpick.tracing import Span
 
-RetrievalSource = Literal["vector", "keyword", "fused", "sql"]
+RetrievalSource = Literal["vector", "keyword", "fused", "sql", "graph"]
 
 
 class Document(BaseModel):
@@ -76,3 +76,16 @@ class Completion(BaseModel):
 
     text: str
     usage: Usage = Field(default_factory=Usage)
+
+
+class StreamEvent(BaseModel):
+    """One event of a streamed answer.
+
+    Order: one ``contexts`` event, zero or more ``delta`` events (text pieces), then one
+    ``answer`` event carrying the complete :class:`Answer` (with parsed citations).
+    """
+
+    type: Literal["contexts", "delta", "answer"]
+    text: str = ""
+    contexts: list[RetrievedChunk] = Field(default_factory=list)
+    answer: Answer | None = None

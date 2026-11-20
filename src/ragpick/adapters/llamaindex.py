@@ -23,7 +23,7 @@ YAML example::
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -192,3 +192,25 @@ class LlamaIndexGenerator(LLMGenerator):
             latency_ms=(time.perf_counter() - start) * 1000,
         )
         return Completion(text=text, usage=usage)
+
+    def stream_complete(self, system: str, user: str) -> Iterator[str | Usage]:
+        """Stream with ``llm.stream_complete`` (falls back to ``complete``)."""
+        if not callable(getattr(self._obj, "stream_complete", None)):
+            yield from super().stream_complete(system, user)
+            return
+        prompt = f"{system}\n\n{user}"
+        start = time.perf_counter()
+        parts: list[str] = []
+        try:
+            for item in self._obj.stream_complete(prompt):
+                piece = getattr(item, "delta", None)
+                if piece:
+                    parts.append(str(piece))
+                    yield str(piece)
+        except Exception as exc:
+            raise ProviderError(f"LlamaIndex LLM call failed: {exc}") from exc
+        yield Usage(
+            prompt_tokens=estimate_tokens(prompt),
+            completion_tokens=estimate_tokens("".join(parts)),
+            latency_ms=(time.perf_counter() - start) * 1000,
+        )

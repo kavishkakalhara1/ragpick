@@ -23,7 +23,7 @@ From Python, pass ready-made objects instead: ``LangChainEmbedder(embeddings=obj
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -184,3 +184,27 @@ class LangChainGenerator(LLMGenerator):
             latency_ms=(time.perf_counter() - start) * 1000,
         )
         return Completion(text=text, usage=usage)
+
+    def stream_complete(self, system: str, user: str) -> Iterator[str | Usage]:
+        """Stream with the chat model's ``stream()`` (falls back to ``invoke``)."""
+        if not callable(getattr(self._obj, "stream", None)):
+            yield from super().stream_complete(system, user)
+            return
+        start = time.perf_counter()
+        usage_meta: dict[str, Any] = {}
+        parts: list[str] = []
+        try:
+            for chunk in self._obj.stream([("system", system), ("human", user)]):
+                piece = _message_text(getattr(chunk, "content", chunk))
+                if piece:
+                    parts.append(piece)
+                    yield piece
+                usage_meta = getattr(chunk, "usage_metadata", None) or usage_meta
+        except Exception as exc:  # provider SDKs raise many types
+            raise ProviderError(f"LangChain model call failed: {exc}") from exc
+        text = "".join(parts)
+        yield Usage(
+            prompt_tokens=int(usage_meta.get("input_tokens") or estimate_tokens(system + user)),
+            completion_tokens=int(usage_meta.get("output_tokens") or estimate_tokens(text)),
+            latency_ms=(time.perf_counter() - start) * 1000,
+        )

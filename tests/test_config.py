@@ -116,7 +116,7 @@ def test_unknown_and_planned_blueprints(tmp_path: Path) -> None:
     with pytest.raises(BlueprintError, match="Unknown blueprint 'nope'"):
         load_config(write(tmp_path, {"blueprint": "nope"}))
     with pytest.raises(BlueprintError, match="planned"):
-        load_config(write(tmp_path, {"blueprint": "graph"}))
+        load_config(write(tmp_path, {"blueprint": "agentic"}))
     with pytest.raises(ConfigError, match="blueprint: must be a string"):
         build_config({"blueprint": 3})
 

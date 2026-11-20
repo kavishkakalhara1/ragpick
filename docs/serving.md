@@ -33,6 +33,16 @@ curl -s localhost:8000/query \
   -d '{"question": "How do I reset my password?"}'
 ```
 
+Add `"stream": true` to get **server-sent events** instead of one JSON body: one
+`contexts` event, many `delta` events (`{"text": "..."}`), then a final `answer` event
+(the same JSON as a normal response). Retrieval errors still return a normal error
+status, because retrieval runs before the stream starts. A provider failure mid-stream
+ends the stream with an `error` event.
+
+```bash
+curl -N localhost:8000/query -d '{"question": "How do I reset my password?", "stream": true}'
+```
+
 Each context is `{"id", "doc_id", "score", "source", "text", "metadata"}`. Errors are
 `{"error": "..."}` with a meaningful status: 401/403 auth, 404, 405, 413 body too large,
 422 invalid body, 502 model provider failed, 503 not ingested. Provider and

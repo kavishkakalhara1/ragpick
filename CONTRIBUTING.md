@@ -67,10 +67,9 @@ Preview the docs with `mkdocs serve`.
 
 - **Loaders**: HTML, DOCX, Notion/Confluence exports, CSV-as-documents.
 - **Stores**: pgvector, Chroma, LanceDB, Elasticsearch/OpenSearch (with filter push-down).
-- **Blueprints**: `graph` and `agentic` are next on the roadmap; routing between `sql`
-  and document pipelines is a good intermediate step.
-- **SQL**: Postgres/MySQL backends for the `sql` retriever (read-only roles + the same
-  validation).
+- **Blueprints**: `agentic` and GraphRAG global search (community summaries) are next.
+- **SQL**: MySQL/DuckDB backends for the `sql` retriever (same `SQLBackend` protocol).
+- **Graph**: better offline entity extraction, graph stores (Neo4j) behind `KnowledgeGraph`.
 - **Trace exporters**: Langfuse, Phoenix (OpenTelemetry is built in).
 - **Serving**: streaming answers (server-sent events), rate limiting.
 - **Embedders and generators**: Cohere, Voyage, Bedrock, Azure OpenAI (or use them today

@@ -177,6 +177,7 @@ def _ask_requirements() -> Requirements:
     )
     keyword = _confirm("Do queries use exact terms (product codes, IDs, legal terms)?", False)
     long_docs = _confirm("Are documents long and structured (manuals, policies, contracts)?", False)
+    multi_hop = _confirm("Do questions connect facts across several documents?", False)
     strict = _confirm('Is a wrong answer worse than "I don\'t know"?', False)
     latency = _ask("Latency requirement", "normal", ["low", "normal"])
     citations = _confirm("Must answers cite their sources?", True)
@@ -187,6 +188,7 @@ def _ask_requirements() -> Requirements:
             "corpus_size": corpus,
             "keyword_heavy": keyword,
             "long_documents": long_docs,
+            "multi_hop": multi_hop,
             "strict_grounding": strict,
             "latency": latency,
             "needs_citations": citations,
@@ -382,10 +384,29 @@ def query(
     ] = False,
     top_k: Annotated[int | None, typer.Option(help="Number of contexts.")] = None,
     trace: Annotated[bool, typer.Option("--trace", help="Show timings of every stage.")] = False,
+    stream: Annotated[
+        bool, typer.Option("--stream", help="Print the answer as it is generated.")
+    ] = False,
     set_: SetOpt = None,
 ) -> None:
     """Answer a question from the index (or the routes of a router config)."""
     engine = load_engine(config, _overrides(set_))
+    if stream:
+        if trace:
+            raise RagpickError("--stream and --trace can't be combined")
+        final = None
+        for event in engine.stream(question, groups=_split_groups(groups), top_k=top_k):
+            if event.type == "delta":
+                console.print(event.text, end="", markup=False, highlight=False, soft_wrap=True)
+            elif event.type == "answer":
+                final = event.answer
+        console.print()
+        if final is not None:
+            if final.route:
+                console.print(f"[dim]route: {escape(final.route)}[/]")
+            if final.citations:
+                console.print("[bold]Citations:[/] " + ", ".join(final.citations), highlight=False)
+        return
     answer = engine.query(
         question, groups=_split_groups(groups), top_k=top_k, trace=True if trace else None
     )

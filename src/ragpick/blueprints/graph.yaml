@@ -1,11 +1,25 @@
 metadata:
   name: graph
   description: >-
-    GraphRAG: extract entities and relations into a knowledge graph and answer
-    multi-hop and global questions from graph neighbourhoods and summaries.
+    GraphRAG: extract entities and relations into a knowledge graph at ingest;
+    at query time, expand the question's entities through the graph (multi-hop),
+    fuse those chunks with hybrid search, and give the LLM the connecting facts.
   best_for:
-    - multi-hop questions across many documents
-    - global questions such as "what are the main themes?"
+    - multi-hop questions that connect facts across documents
+    - corpora full of named things (products, parts, codes, people, policies)
   tradeoffs:
-    - expensive indexing (LLM extraction over the whole corpus)
-  status: planned
+    - LLM extraction costs one call per chunk at ingest (use the cache; or the offline heuristic)
+    - local search only; corpus-wide "main themes" summaries are not built yet
+  status: stable
+defaults:
+  components:
+    loader: {type: directory, params: {glob: "**/*"}}
+    chunker: {type: recursive, params: {chunk_size: 800, overlap: 100}}
+    embedder: {type: fake, params: {dimension: 256}}
+    store: {type: memory}
+    keyword_index: {type: bm25, params: {k1: 1.5, b: 0.75}}
+    retriever: {type: graph, params: {k: 5, hops: 1, extractor: auto, include_facts: true}}
+    reranker: {type: none}
+    generator: {type: fake}
+  query:
+    top_k: 5

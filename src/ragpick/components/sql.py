@@ -29,7 +29,7 @@ import time
 from collections.abc import Iterator
 from contextlib import closing
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from ragpick.errors import ConfigError, RagpickError
 from ragpick.filters import ACL_KEY
@@ -40,7 +40,7 @@ from ragpick.tracing import set_attributes, span
 
 logger = logging.getLogger(__name__)
 
-SQL_SYSTEM = """You translate questions into one read-only SQLite query.
+SQL_SYSTEM = """You translate questions into one read-only {dialect} query.
 
 Rules:
 1. Write exactly one SELECT statement (WITH ... SELECT is allowed). Never modify data.
@@ -67,11 +67,36 @@ Error: {error}
 Write a corrected query."""
 
 _IDENT_RE = re.compile(r"[^0-9a-zA-Z_]+")
+POSTGRES_PREFIXES = ("postgresql://", "postgres://")
 _FENCE_RE = re.compile(r"```(?:sql)?\s*(.*?)```", re.DOTALL | re.IGNORECASE)
 
 
 class SQLSafetyError(RagpickError):
     """A generated statement was rejected (not a single read-only query, or denied)."""
+
+
+class SQLQueryError(RagpickError):
+    """The database rejected a query (e.g. unknown column); the model may retry."""
+
+
+class SQLBackend(Protocol):
+    """A read-only SQL database the ``sql`` retriever can query."""
+
+    dialect: str
+
+    def tables(self) -> list[str]:
+        """Queryable table and view names."""
+        ...
+
+    def schema(self, tables: list[str], sample_rows: int = 3) -> str:
+        """Schema description (and sample rows) for ``tables``."""
+        ...
+
+    def run(
+        self, sql: str, allowed_tables: set[str], max_rows: int = 50
+    ) -> tuple[list[str], list[tuple[Any, ...]], bool, set[str]]:
+        """Run a query: ``(columns, rows, truncated, tables_read)``."""
+        ...
 
 
 # --------------------------------------------------------------------------- loading
@@ -198,6 +223,8 @@ def validate_sql(sql: str) -> str:
 class SQLDatabase:
     """Read-only access to a SQLite file with an authorizer, timeout and row cap."""
 
+    dialect = "SQLite"
+
     def __init__(self, path: Path, timeout_s: float = 5.0) -> None:
         if not path.is_file():
             raise ConfigError(f"SQLite database not found: {path}")
@@ -254,7 +281,7 @@ class SQLDatabase:
 
         Raises:
             SQLSafetyError: the statement was rejected or touched a forbidden table.
-            sqlite3.Error: SQL errors (e.g. unknown column), for the retry loop.
+            SQLQueryError: SQL errors (e.g. unknown column), for the retry loop.
         """
         sql = validate_sql(sql)
         tables_read: set[str] = set()
@@ -298,7 +325,7 @@ class SQLDatabase:
                     ) from exc
                 if "interrupted" in str(exc).lower():
                     raise SQLSafetyError(f"Query exceeded the {self.timeout_s:g}s timeout") from exc
-                raise
+                raise SQLQueryError(str(exc)) from exc
         finally:
             conn.close()
         return columns, rows[:max_rows], len(rows) > max_rows, tables_read
@@ -340,6 +367,7 @@ class SQLRetriever:
         database: str | None = None,
         tables: list[str] | None = None,
         table_groups: dict[str, list[str]] | None = None,
+        schemas: list[str] | None = None,
         max_rows: int = 50,
         sample_rows: int = 3,
         timeout_s: float = 5.0,
@@ -347,7 +375,9 @@ class SQLRetriever:
         k: int = 1,
     ) -> None:
         self.generator = generator
-        self.database = Path(database).expanduser() if database else None
+        self.dsn = database if database and database.startswith(POSTGRES_PREFIXES) else None
+        self.database = Path(database).expanduser() if database and not self.dsn else None
+        self.schemas = list(schemas) if schemas else None
         self.ingested_path = Path(index_dir) / "sql" / "data.sqlite"
         self.tables = list(tables) if tables else None
         self.table_groups = {t.lower(): list(g) for t, g in (table_groups or {}).items()}
@@ -359,10 +389,14 @@ class SQLRetriever:
 
     @property
     def requires_ingest(self) -> bool:
-        """``False`` when querying an existing ``database``."""
-        return self.database is None
+        """``False`` when querying an existing ``database`` (SQLite file or Postgres)."""
+        return self.database is None and self.dsn is None
 
-    def _db(self) -> SQLDatabase:
+    def _db(self) -> SQLBackend:
+        if self.dsn is not None:
+            from ragpick.components.postgres import PostgresDatabase
+
+            return PostgresDatabase(self.dsn, self.timeout_s, schemas=self.schemas)
         path = self.database or self.ingested_path
         if not path.is_file():
             raise ConfigError(
@@ -375,7 +409,7 @@ class SQLRetriever:
     def index_documents(self, docs: list[Document]) -> None:
         """Load CSV documents into ``<index_dir>/sql/data.sqlite`` (one table each)."""
         csv_docs = [d for d in docs if d.metadata.get("format") == "csv"]
-        if self.database is not None:
+        if self.database is not None or self.dsn is not None:
             if csv_docs:
                 logger.warning("retriever.database is set; ingested CSV files are ignored")
             return
@@ -390,7 +424,7 @@ class SQLRetriever:
             conn.commit()
 
     # -------------------------------------------------------------- query
-    def visible_tables(self, db: SQLDatabase, filters: dict[str, Any] | None) -> list[str]:
+    def visible_tables(self, db: SQLBackend, filters: dict[str, Any] | None) -> list[str]:
         """Tables the caller may query (``tables`` allow-list and ``table_groups`` ACL)."""
         groups = (filters or {}).get(ACL_KEY)
         caller = set(groups if isinstance(groups, list) else [groups] if groups else [])
@@ -425,7 +459,7 @@ class SQLRetriever:
             set_attributes(tables=0)
             return []
         schema = db.schema(tables, self.sample_rows)
-        system = SQL_SYSTEM.format(max_rows=self.max_rows)
+        system = SQL_SYSTEM.format(max_rows=self.max_rows, dialect=db.dialect)
         prompt = SQL_PROMPT.format(schema=schema, question=query)
         last_error = ""
         sql = ""
@@ -442,7 +476,7 @@ class SQLRetriever:
                         s.error = last_error
                     if "Access denied" in last_error or "timeout" in last_error:
                         break  # don't let the model probe for forbidden tables
-                except sqlite3.Error as exc:
+                except SQLQueryError as exc:
                     last_error = str(exc)
                     if s is not None:
                         s.error = last_error

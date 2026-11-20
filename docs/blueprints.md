@@ -8,7 +8,7 @@ Run `ragpick blueprints` to see this list in your terminal.
 | `hybrid` | stable | the default for commercial systems; keyword-heavy domains; medium and large corpora |
 | `parent_child` | stable | long structured documents where answers need surrounding context |
 | `sql` | stable | structured data and analytics questions (text-to-SQL) |
-| `graph` | planned | multi-hop and "main themes" questions (GraphRAG) |
+| `graph` | stable | multi-hop questions across documents (GraphRAG local search) |
 | `agentic` | planned | complex questions needing several lookups or tools |
 | `corrective` | stable | noisy corpora, high-stakes answers: grade retrieval, retry, or refuse |
 
@@ -114,6 +114,46 @@ components:
 `parent_child` too). Run `ragpick query --trace` to see the grade/rewrite steps. Set
 `requirements.strict_grounding: true` and the selector recommends it.
 
+## graph
+
+```text
+ingest:  chunk → extract entities & relations (LLM or heuristic) → knowledge graph
+query:   question entities → expand N hops → graph-ranked chunks ─┐
+         hybrid BM25 + vector ────────────────────────────────────┴→ RRF → [facts, chunks…]
+```
+
+Some questions need two facts that live in different places ("which error code relates
+to the battery of the thermostat that runs without a C-wire?"). `graph` links entities
+across chunks, so retrieval can follow those connections, and the LLM gets them
+spelled out:
+
+```text
+Knowledge graph facts:
+- LM-200 → related to → LM-300 Pro (source: getting-started.md#0)
+- E-1042 → related to → AAA (source: error-codes.md#0)
+```
+
+```yaml
+blueprint: graph
+components:
+  retriever:
+    params: {hops: 1, extractor: auto, graph_weight: 1.0, include_facts: true, max_facts: 15}
+  generator: {type: openai, params: {model: gpt-4o-mini}}   # enables LLM extraction
+```
+
+- **Extraction.** With a real LLM (`extractor: auto` or `llm`), each chunk is turned into
+  typed entities and labelled relations ("requires", "is covered by") at ingest. That's one
+  LLM call per chunk, so enable the `cache`. Offline, a heuristic picks up product codes,
+  IDs, acronyms and multi-word names, and relates entities that share a sentence.
+- **Access control.** Chunks are filtered by `allowed_groups` as usual, and a fact is
+  included only if at least one chunk *visible to the caller* supports it.
+- **Evaluation.** The facts context is marked `synthetic` and doesn't count in retrieval
+  metrics.
+- **Scope.** This is GraphRAG *local* search. Corpus-wide "what are the main themes?"
+  questions (community summaries) are on the roadmap.
+
+Set `requirements.multi_hop: true` and the selector recommends it.
+
 ## sql
 
 ```text
@@ -130,7 +170,8 @@ data: tables                      # CSV files: one table per file (loader type: 
 components:
   retriever:
     params:
-      # database: ./shop.sqlite   # …or query an existing SQLite file (no ingest needed)
+      # database: ./shop.sqlite                     # …or an existing SQLite file
+      # database: ${SHOP_DATABASE_URL}              # …or postgresql://reader:…@host/db
       table_groups: {salaries: [hr]}
       max_rows: 50
   generator: {type: openai, params: {model: gpt-4o-mini}}   # needs a real LLM
@@ -144,6 +185,15 @@ components:
 | authorizer allow-list | anything but `SELECT`/reads/functions (`ATTACH`, `PRAGMA`, writes in CTEs), reads of hidden tables and of `sqlite_master` |
 | statement check | multiple statements, non-`SELECT` statements |
 | timeout and row cap | runaway queries, huge results |
+
+**PostgreSQL** (`database: postgresql://…`, `pip install "psycopg[binary]"`): sessions
+are `READ ONLY` with a `statement_timeout`; administrative, file and network functions
+(`pg_*`, `lo_*`, `dblink`, `set_config`, …) are rejected; and before running a query,
+`EXPLAIN (FORMAT JSON)` lists every table the plan reads, so a hidden table is
+denied even through a view, CTE or subquery. Connect with a role that can only `SELECT`
+the tables you expose (that's the real boundary), use `schemas: [...]` to pick
+schemas, and list views over restricted tables in `table_groups` too, so they don't
+appear in the schema the LLM sees.
 
 A failed query is retried once with the error message. Denied access is never retried,
 so a model can't probe for hidden tables.

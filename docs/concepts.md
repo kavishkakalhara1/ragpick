@@ -12,9 +12,9 @@ A pipeline is made of small, swappable components. Each one is a `typing.Protoco
 | `embedder` | `embed(texts)`, `dimension` (optional `embed_query`) | `fake`, `openai`, `sentence_transformers`, `langchain`, `llamaindex` |
 | `store` | `add`, `search`, `delete`, `persist`, `load` | `memory`, `qdrant` |
 | `keyword_index` | `add`, `search`, `persist`, `load` | `bm25` |
-| `retriever` | `retrieve(query, k, filters)` | `vector`, `keyword`, `hybrid`, `parent_child`, `corrective`, `sql`, `langchain`, `llamaindex` |
+| `retriever` | `retrieve(query, k, filters)` | `vector`, `keyword`, `hybrid`, `parent_child`, `corrective`, `graph`, `sql`, `langchain`, `llamaindex` |
 | `reranker` | `rerank(query, chunks, top_n)` | `none`, `cross_encoder` |
-| `generator` | `generate(query, contexts) -> Answer` | `fake`, `openai`, `ollama`, `langchain`, `llamaindex` |
+| `generator` | `generate(query, contexts) -> Answer` (optional `stream`) | `fake`, `openai`, `ollama`, `langchain`, `llamaindex` |
 
 Data flows through these models: `Document` → `Chunk` → `RetrievedChunk` → `Answer`
 (text, `citations` as chunk ids, `contexts`, `usage`).
@@ -25,7 +25,12 @@ Data flows through these models: `Document` → `Chunk` → `RetrievedChunk` →
 
 Components receive `embedder`, `store`, `keyword_index`, `generator` and `index_dir` by
 constructor parameter name. A component that implements `index_documents(docs)` also
-receives the raw documents at ingest; the SQL retriever uses this to build its database.
+receives the raw documents at ingest (the SQL retriever builds its database this way),
+and one that implements `index_chunks(chunks)` receives the chunks (the graph retriever
+builds its knowledge graph this way).
+
+**Streaming:** `pipeline.stream(question)` yields `StreamEvent`s: `contexts`, then `delta`
+text pieces, then the final `answer` with citations.
 
 ## Blueprints
 
@@ -62,6 +67,7 @@ merged result with `ragpick validate`.
 
 | Situation | Effect |
 |---|---|
+| `multi_hop` (facts spread across documents) | `graph` |
 | long, structured documents | `parent_child` |
 | small corpus, not keyword-heavy | `naive` |
 | keyword-heavy, or medium/large corpus | `hybrid` |

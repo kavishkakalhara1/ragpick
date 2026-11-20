@@ -78,7 +78,13 @@ def test_rank_by_metric_then_latency() -> None:
 
 def test_run_bench_offline() -> None:
     result = run_bench(DATASET, DATA)
-    assert set(result.ranking) == {"naive", "hybrid", "parent_child", "corrective"}  # no sql
+    assert set(result.ranking) == {
+        "naive",
+        "hybrid",
+        "parent_child",
+        "corrective",
+        "graph",
+    }  # no sql
     assert result.winner == result.ranking[0]
     assert result.metric == "mrr"
     best = result.report_for(result.winner).metrics["mrr"] or 0
@@ -121,7 +127,7 @@ def test_run_bench_validation() -> None:
     with pytest.raises(ConfigError, match="Unknown metric"):
         run_bench(DATASET, DATA, metric="vibes")
     with pytest.raises(BlueprintError, match="planned"):
-        run_bench(DATASET, DATA, blueprints=["graph"])
+        run_bench(DATASET, DATA, blueprints=["agentic"])
 
 
 runner = CliRunner()

@@ -36,6 +36,7 @@ What the application needs. Used by the selector (`ragpick recommend`).
 | `corpus_size` | `small` \| `medium` \| `large` | `'small'` | small (<1k chunks), medium, or large (>100k chunks). |
 | `keyword_heavy` | bool | `False` | Queries rely on exact terms: product codes, legal terms, IDs. |
 | `long_documents` | bool | `False` | Documents are long and structured (manuals, policies, contracts). |
+| `multi_hop` | bool | `False` | Questions connect facts spread across several documents. |
 | `strict_grounding` | bool | `False` | Wrong answers are costly: prefer "I don't know" over guessing. |
 | `latency` | `low` \| `normal` | `'normal'` | `low` disables expensive stages. |
 | `needs_citations` | bool | `True` | Answers must cite their sources. |

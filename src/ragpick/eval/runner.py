@@ -154,7 +154,9 @@ def evaluate(
             result.answer = answer.text
             result.route = answer.route
             result.citations = answer.citations
-            result.retrieved_doc_ids = [c.chunk.doc_id for c in answer.contexts]
+            result.retrieved_doc_ids = [
+                c.chunk.doc_id for c in answer.contexts if not c.chunk.metadata.get("synthetic")
+            ]
             result.prompt_tokens = answer.usage.prompt_tokens
             result.completion_tokens = answer.usage.completion_tokens
             usages.append(answer.usage)

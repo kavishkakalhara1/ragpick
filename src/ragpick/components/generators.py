@@ -8,9 +8,11 @@ only from the numbered context passages, cite them as ``[1]``, and say
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import time
+from collections.abc import Iterator
 from typing import Any
 
 import httpx
@@ -111,6 +113,19 @@ class LLMGenerator:
         """Run one chat completion."""
         raise NotImplementedError
 
+    def stream_complete(self, system: str, user: str) -> Iterator[str | Usage]:
+        """Stream one completion; the default calls :meth:`complete` once."""
+        completion = self.complete(system, user)
+        yield completion.text
+        yield completion.usage
+
+    def stream(self, query: str, contexts: list[RetrievedChunk]) -> Iterator[str | Usage]:
+        """Stream the grounded answer (text pieces, then usage)."""
+        if not contexts:
+            yield IDK
+            return
+        yield from self.stream_complete(self.system_prompt, build_user_prompt(query, contexts))
+
     def generate(self, query: str, contexts: list[RetrievedChunk]) -> Answer:
         """Answer ``query`` from ``contexts`` with citations."""
         if not contexts:
@@ -158,6 +173,14 @@ class FakeGenerator(LLMGenerator):
             completion_tokens=estimate_tokens(self.response),
         )
         return Completion(text=self.response, usage=usage)
+
+    def stream(self, query: str, contexts: list[RetrievedChunk]) -> Iterator[str | Usage]:
+        """Stream the extractive answer word by word."""
+        answer = self.generate(query, contexts)
+        words = answer.text.split(" ")
+        for i, word in enumerate(words):
+            yield word if i == len(words) - 1 else word + " "
+        yield answer.usage
 
     def generate(self, query: str, contexts: list[RetrievedChunk]) -> Answer:
         """Extract the best-matching sentences from ``contexts``."""
@@ -235,13 +258,43 @@ class OpenAIGenerator(LLMGenerator):
             raise ProviderError(f"OpenAI request failed: {exc}") from exc
         latency = (time.perf_counter() - start) * 1000
         text = response.choices[0].message.content or ""
+        return Completion(text=text, usage=self._usage(response, latency))
+
+    @staticmethod
+    def _usage(response: Any, latency: float) -> Usage:
         usage_obj = getattr(response, "usage", None)
-        usage = Usage(
+        return Usage(
             prompt_tokens=int(getattr(usage_obj, "prompt_tokens", 0) or 0),
             completion_tokens=int(getattr(usage_obj, "completion_tokens", 0) or 0),
             latency_ms=latency,
         )
-        return Completion(text=text, usage=usage)
+
+    def stream_complete(self, system: str, user: str) -> Iterator[str | Usage]:
+        """Stream tokens from the chat completions API (with final usage)."""
+        kwargs: dict[str, Any] = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "temperature": self.temperature,
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+        if self.max_tokens is not None:
+            kwargs["max_tokens"] = self.max_tokens
+        start = time.perf_counter()
+        try:
+            for chunk in self._client.chat.completions.create(**kwargs):
+                choices = getattr(chunk, "choices", None) or []
+                if choices:
+                    piece = getattr(choices[0].delta, "content", None)
+                    if piece:
+                        yield piece
+                if getattr(chunk, "usage", None) is not None:
+                    yield self._usage(chunk, (time.perf_counter() - start) * 1000)
+        except Exception as exc:  # the SDK raises many exception types
+            raise ProviderError(f"OpenAI request failed: {exc}") from exc
 
 
 @register("generator", "ollama")
@@ -288,7 +341,10 @@ class OllamaGenerator(LLMGenerator):
             ) from exc
         except ValueError as exc:
             raise ProviderError(f"Ollama returned invalid JSON: {exc}") from exc
-        latency = (time.perf_counter() - start) * 1000
+        return self._completion(data, (time.perf_counter() - start) * 1000)
+
+    @staticmethod
+    def _completion(data: dict[str, Any], latency: float) -> Completion:
         text = str((data.get("message") or {}).get("content", ""))
         usage = Usage(
             prompt_tokens=int(data.get("prompt_eval_count", 0) or 0),
@@ -296,3 +352,39 @@ class OllamaGenerator(LLMGenerator):
             latency_ms=latency,
         )
         return Completion(text=text, usage=usage)
+
+    def stream_complete(self, system: str, user: str) -> Iterator[str | Usage]:
+        """Stream ``/api/chat`` (newline-delimited JSON)."""
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "stream": True,
+            "options": {"temperature": self.temperature},
+        }
+        start = time.perf_counter()
+        try:
+            with self._client.stream("POST", "/api/chat", json=payload) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if not line.strip():
+                        continue
+                    data = json.loads(line)
+                    piece = (data.get("message") or {}).get("content")
+                    if piece:
+                        yield str(piece)
+                    if data.get("done"):
+                        yield self._completion(data, (time.perf_counter() - start) * 1000).usage
+        except httpx.HTTPStatusError as exc:
+            raise ProviderError(
+                f"Ollama returned HTTP {exc.response.status_code} "
+                f"(is the model pulled? run `ollama pull {self.model}`)"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise ProviderError(
+                f"Could not reach Ollama at {self.base_url} ({exc}); is `ollama serve` running?"
+            ) from exc
+        except ValueError as exc:
+            raise ProviderError(f"Ollama returned invalid JSON: {exc}") from exc

@@ -1,0 +1,16 @@
+# Offline example: graph blueprint (knowledge graph + hybrid search).
+# With a real LLM generator, entities/relations are extracted by the LLM (extractor: auto).
+#   ragpick ingest -c examples/graph.yaml
+#   ragpick query "Which error appears when the LM-200 battery is low?" -c examples/graph.yaml --trace
+version: 1
+name: graph
+blueprint: graph
+data: data
+index_dir: .ragpick/graph
+requirements:
+  multi_hop: true
+components:
+  retriever:
+    params: {hops: 1, include_facts: true}
+query:
+  top_k: 4

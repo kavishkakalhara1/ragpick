@@ -173,6 +173,33 @@ interfaces extensible. Each decision is listed here so it can be revisited.
     so ragpick's tracing stays dependency-free and every backend sees identical spans.
     Root spans carry a wall-clock `timestamp` for absolute times.
 
+## v0.5
+
+58. **Streams are events, not raw text**: contexts first (so UIs can show sources while
+    the answer is written), then deltas, then the full `Answer` with parsed citations.
+    Generators without `stream()` produce one delta. Streams aren't traced (generators
+    and context variables don't mix reliably), and routers don't fall back mid-stream.
+59. **Streamed HTTP responses retrieve before streaming**, so "not ingested" and
+    validation errors keep proper status codes; later failures end the stream with an
+    `error` event that hides provider details.
+60. **GraphRAG v1 is local search**: entity matching + N-hop expansion fused with hybrid
+    search by RRF, plus a facts context. Global "themes" search needs community
+    summarisation and is deferred.
+61. **Graph extraction runs through a `ChunkIndexer` hook** and is persisted as JSON next to
+    the other indexes; the graph stores chunk copies (like BM25) so it can return chunks
+    and check their metadata. Re-ingest replaces a document's graph contributions.
+62. **The offline extractor is deliberately conservative**: codes, acronyms and
+    multi-word capitalised names only (single capitalised words are mostly UI labels and
+    sentence starts), with codes kept inside longer names so "LM-300" links to "LM-300 Pro".
+63. **Graph facts respect access control** by requiring a supporting chunk the caller can
+    see, so relations learned from restricted documents never appear for others.
+64. **Synthetic contexts** (`metadata.synthetic`) are excluded from retrieval metrics,
+    since they aren't documents.
+65. **PostgreSQL table checks use `EXPLAIN (FORMAT JSON)`** relation lists, which see through
+    views, CTEs and subqueries, plus read-only sessions, `statement_timeout` and a
+    function denylist. A least-privilege database role remains the primary boundary.
+    `psycopg` is loaded lazily with a custom install hint (no new extra).
+
 ## Tooling
 
 31. **`types-PyYAML` is not a dev dependency** (it wasn't in the approved list), so mypy

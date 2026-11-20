@@ -62,6 +62,9 @@ class Requirements(_Strict):
         False,
         description="Documents are long and structured (manuals, policies, contracts).",
     )
+    multi_hop: bool = Field(
+        False, description="Questions connect facts spread across several documents."
+    )
     strict_grounding: bool = Field(
         False,
         description='Wrong answers are costly: prefer "I don\'t know" over guessing.',

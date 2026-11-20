@@ -45,7 +45,7 @@ class Blueprint(BaseModel):
         return self.metadata.status == "stable"
 
 
-_ORDER = ["naive", "hybrid", "parent_child", "corrective", "sql", "graph", "agentic"]
+_ORDER = ["naive", "hybrid", "parent_child", "corrective", "graph", "sql", "agentic"]
 
 
 @cache

@@ -31,7 +31,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -51,7 +51,7 @@ from ragpick.config import (
 )
 from ragpick.errors import ConfigError
 from ragpick.interfaces import TextCompleter
-from ragpick.models import Answer, RetrievedChunk
+from ragpick.models import Answer, RetrievedChunk, StreamEvent
 from ragpick.pipeline import IngestStats, Pipeline, ProgressCallback
 from ragpick.registry import registry
 from ragpick.tracing import set_attributes, span
@@ -289,6 +289,26 @@ class Router:
             except Exception as exc:  # exporters must never break queries
                 logger.warning("Trace exporter %s failed: %s", type(exporter).__name__, exc)
         return answer
+
+    def stream(
+        self,
+        question: str,
+        *,
+        groups: list[str] | None = None,
+        filters: dict[str, Any] | None = None,
+        top_k: int | None = None,
+    ) -> Iterator[StreamEvent]:
+        """Route, then stream from the chosen route (no fallback: text is already sent)."""
+        route, _ = self.choose(question, groups)
+        if route is None:
+            yield StreamEvent(type="contexts")
+            yield StreamEvent(type="delta", text=IDK)
+            yield StreamEvent(type="answer", answer=Answer(text=IDK))
+            return
+        for event in route.pipeline.stream(question, groups=groups, filters=filters, top_k=top_k):
+            if event.answer is not None:
+                event.answer.route = route.name
+            yield event
 
     def _query(
         self,

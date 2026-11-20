@@ -121,6 +121,26 @@ RULES: list[Rule] = [
         alternatives=("hybrid",),
     ),
     Rule(
+        id="multi_hop",
+        when=lambda c: _r(c).multi_hop,
+        blueprint="graph",
+        priority=65,
+        reason=(
+            "Multi-hop questions: a knowledge graph links entities across documents, so "
+            "retrieval can follow relations (product → part → error code) that no single "
+            "chunk states, and the LLM receives the connecting facts."
+        ),
+        alternatives=("hybrid",),
+    ),
+    Rule(
+        id="multi_hop_strict",
+        when=lambda c: _r(c).multi_hop and _r(c).strict_grounding,
+        warning=(
+            "strict_grounding wins over multi_hop (corrective is recommended); compare it "
+            "with graph using `ragpick bench -b corrective -b graph`."
+        ),
+    ),
+    Rule(
         id="long_documents",
         when=lambda c: _r(c).long_documents,
         blueprint="parent_child",
