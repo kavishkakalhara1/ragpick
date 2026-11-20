@@ -537,6 +537,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#feedback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        feedback
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#api-key-each-entry-of-serveapi_keys" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -738,6 +749,33 @@
     
   
     Conversations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feedback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback
   
 
     
@@ -990,6 +1028,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#feedback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        feedback
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#api-key-each-entry-of-serveapi_keys" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1151,6 +1200,12 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 <td>Chat sessions.</td>
 </tr>
 <tr>
+<td><code>feedback</code></td>
+<td>FeedbackConfig</td>
+<td>see section</td>
+<td>Answer feedback.</td>
+</tr>
+<tr>
 <td><code>index_dir</code></td>
 <td>str</td>
 <td><code>'.ragpick/index'</code></td>
@@ -1211,6 +1266,12 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 <td>bool</td>
 <td><code>False</code></td>
 <td>Users ask follow-up questions in a chat.</td>
+</tr>
+<tr>
+<td><code>summary_questions</code></td>
+<td>bool</td>
+<td><code>False</code></td>
+<td>Users ask for overviews and summaries as well as details.</td>
 </tr>
 <tr>
 <td><code>multi_hop</code></td>
@@ -1606,6 +1667,32 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 </tr>
 </tbody>
 </table>
+<h2 id="feedback"><code>feedback</code><a class="headerlink" href="#feedback" title="Permanent link">&para;</a></h2>
+<p>Answer feedback (<code>POST /feedback</code>, <code>record_feedback</code>, <code>ragpick feedback</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>bool</td>
+<td><code>False</code></td>
+<td>Accept <code>POST /feedback</code> on the HTTP server.</td>
+</tr>
+<tr>
+<td><code>answer_log_size</code></td>
+<td>int</td>
+<td><code>10000</code></td>
+<td>Recent answers the server keeps so they can be rated.</td>
+</tr>
+</tbody>
+</table>
 <h2 id="api-key-each-entry-of-serveapi_keys">API key (each entry of <code>serve.api_keys</code>)<a class="headerlink" href="#api-key-each-entry-of-serveapi_keys" title="Permanent link">&para;</a></h2>
 <p>An API key for <code>ragpick serve</code> and the groups its holder may act as.</p>
 <table>
@@ -1699,10 +1786,16 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 <td>Chat sessions.</td>
 </tr>
 <tr>
+<td><code>feedback</code></td>
+<td>FeedbackConfig</td>
+<td>see section</td>
+<td>Answer feedback.</td>
+</tr>
+<tr>
 <td><code>sessions_dir</code></td>
 <td>str</td>
 <td><code>'.ragpick/router'</code></td>
-<td>Where <code>store: sqlite</code> sessions live.</td>
+<td>Where router sessions and feedback are stored.</td>
 </tr>
 </tbody>
 </table>

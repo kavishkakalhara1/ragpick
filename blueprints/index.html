@@ -466,6 +466,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#hierarchical" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hierarchical
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sql" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -691,6 +702,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../feedback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../operations/" class="md-nav__link">
         
   
@@ -880,6 +918,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#hierarchical" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hierarchical
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sql" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -974,8 +1023,13 @@
 </tr>
 <tr>
 <td><code>hierarchical</code></td>
+<td>stable</td>
+<td>RAPTOR-style summary trees: details and overviews</td>
+</tr>
+<tr>
+<td><code>long_context</code></td>
 <td>planned</td>
-<td>RAPTOR-style summary trees</td>
+<td>small corpora with long-context models</td>
 </tr>
 <tr>
 <td><code>corrective</code></td>
@@ -1152,6 +1206,33 @@ and the selector recommends it.</p>
 <p><code>hybrid</code> retrieval plus chat sessions stored in SQLite. Each follow-up is rewritten into a
 standalone question before retrieval. <code>chat()</code> works with every blueprint; this one just
 sets good defaults. See <a href="../conversations/">Conversations</a>.</p>
+<h2 id="hierarchical">hierarchical<a class="headerlink" href="#hierarchical" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>ingest: chunks → cluster by embedding → summarise each cluster → cluster the summaries → …
+        (summary nodes are indexed next to the chunks)
+query:  hybrid search over chunks + summaries ("collapsed tree")
+</code></pre></div>
+<p>Chunk search answers detail questions well and overview questions badly ("what does the
+warranty cover overall?" needs several chunks at once). RAPTOR-style trees add summary
+nodes at increasing levels of abstraction, and searching them together with the chunks
+lets each question find its natural level.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">blueprint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hierarchical</span>
+<span class="nt">components</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">retriever</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">cluster_size</span><span class="p">:</span><span class="w"> </span><span class="nv">6</span><span class="p p-Indicator">,</span><span class="nt"> max_levels</span><span class="p">:</span><span class="w"> </span><span class="nv">3</span><span class="p p-Indicator">,</span><span class="nt"> summarizer</span><span class="p">:</span><span class="w"> </span><span class="nv">auto</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">generator</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="nv">openai</span><span class="p p-Indicator">,</span><span class="nt"> params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="nv">gpt-4o-mini</span><span class="p p-Indicator">}}</span><span class="w">   </span><span class="c1"># LLM-written summaries</span>
+<span class="nt">cache</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">}</span>
+</code></pre></div>
+<ul>
+<li>Clustering is deterministic (each seed takes its nearest unassigned neighbours).
+  Offline summaries are extractive (the first informative sentence of each member).</li>
+<li><strong>Access control:</strong> a tree is built per access scope (public, and each distinct
+  <code>allowed_groups</code> set), and summary nodes carry that scope's <code>allowed_groups</code>. A summary
+  never mixes restricted and public text.</li>
+<li>Re-ingest rebuilds the tree; clusters whose members are unchanged reuse their summary.</li>
+<li>Summary nodes are <code>synthetic</code> (excluded from retrieval metrics) and record their
+  <code>children</code> and <code>source_docs</code>.</li>
+</ul>
+<p>Set <code>requirements.summary_questions: true</code> and the selector recommends it.</p>
 <h2 id="sql">sql<a class="headerlink" href="#sql" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>question + schema → LLM writes one SELECT → SQLite (read-only) → result rows → generator
 </code></pre></div>

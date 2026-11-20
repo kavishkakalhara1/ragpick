@@ -532,6 +532,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../feedback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../operations/" class="md-nav__link">
         
   
@@ -778,6 +805,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#v09" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.9
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tooling" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -948,6 +986,17 @@
     <span class="md-ellipsis">
       
         v0.8
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v09" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.9
       
     </span>
   </a>
@@ -1246,6 +1295,24 @@ interfaces extensible. Each decision is listed here so it can be revisited.</p>
     <code>matches_filters</code> in tests.</li>
 <li><strong>LanceDB filters use a <code>tags</code> list column</strong> (<code>key=value</code>) and <code>array_has_any</code>, with
     every value quoted and escaped, and run as a pre-filter before vector ranking.</li>
+</ol>
+<h2 id="v09">v0.9<a class="headerlink" href="#v09" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>RAPTOR uses the "collapsed tree"</strong>: summary nodes live in the same vector store and
+    keyword index as chunks, so any retriever, reranker and filter applies unchanged.</li>
+<li><strong>Clustering is greedy nearest-neighbour</strong> (deterministic, numpy, no new
+    dependency) rather than GMM/UMAP as in the RAPTOR paper.</li>
+<li><strong>Trees are built per access scope</strong>, so summaries inherit exactly one
+    <code>allowed_groups</code> set and access control is enforced by the normal filters.</li>
+<li><strong>Summaries are cached by a signature</strong> of their members, persisted with the tree;
+    re-ingest rebuilds structure but only re-summarises changed clusters.</li>
+<li><strong>Answers carry an <code>id</code></strong>; the server rates only answers it remembers giving to the
+    same (API key, tenant), and builds the feedback record from its own copy, so clients
+    can't inject questions/answers or rate others' answers.</li>
+<li><strong>Feedback becomes evaluation data</strong>: liked answers with cited documents become
+    regression tests; disliked ones become unanswered questions to review.</li>
+<li><strong>Hosted rerankers use <code>httpx</code> directly</strong>, with the same <code>{index, relevance_score}</code>
+    result shape for Cohere and Jina, and keep each chunk's original <code>source</code>.</li>
 </ol>
 <h2 id="tooling">Tooling<a class="headerlink" href="#tooling" title="Permanent link">&para;</a></h2>
 <ol>

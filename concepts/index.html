@@ -647,6 +647,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../feedback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../operations/" class="md-nav__link">
         
   
@@ -874,12 +901,12 @@
 <tr>
 <td><code>retriever</code></td>
 <td><code>retrieve(query, k, filters)</code></td>
-<td><code>vector</code>, <code>keyword</code>, <code>hybrid</code>, <code>parent_child</code>, <code>corrective</code>, <code>graph</code>, <code>agentic</code>, <code>sql</code>, <code>langchain</code>, <code>llamaindex</code></td>
+<td><code>vector</code>, <code>keyword</code>, <code>hybrid</code>, <code>parent_child</code>, <code>corrective</code>, <code>graph</code>, <code>agentic</code>, <code>hierarchical</code>, <code>sql</code>, <code>langchain</code>, <code>llamaindex</code></td>
 </tr>
 <tr>
 <td><code>reranker</code></td>
 <td><code>rerank(query, chunks, top_n)</code></td>
-<td><code>none</code>, <code>cross_encoder</code></td>
+<td><code>none</code>, <code>cross_encoder</code>, <code>cohere</code>, <code>jina</code></td>
 </tr>
 <tr>
 <td><code>generator</code></td>
@@ -929,6 +956,10 @@ merged result with <code>ragpick validate</code>.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>summary_questions</code> (overviews and details)</td>
+<td><code>hierarchical</code></td>
+</tr>
 <tr>
 <td><code>multi_hop</code> (facts spread across documents)</td>
 <td><code>graph</code></td>

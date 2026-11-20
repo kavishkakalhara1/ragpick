@@ -625,6 +625,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../feedback/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feedback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../operations/" class="md-nav__link">
         
   
@@ -841,6 +868,11 @@ application is a plain ASGI app, so you can also mount it in your own server:</p
 <td><code>DELETE /sessions/{id}</code></td>
 <td>–</td>
 <td>forget a chat session (owner only)</td>
+</tr>
+<tr>
+<td><code>POST /feedback</code></td>
+<td><code>{"answer_id", "rating", "comment"?}</code></td>
+<td>rate an answer this key received (<a href="../feedback/">Feedback</a>)</td>
 </tr>
 </tbody>
 </table>
