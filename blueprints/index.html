@@ -455,6 +455,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#conversational" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conversational
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sql" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -653,6 +664,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../conversations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conversations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../operations/" class="md-nav__link">
         
   
@@ -831,6 +869,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#conversational" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conversational
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sql" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -920,8 +969,13 @@
 </tr>
 <tr>
 <td><code>conversational</code></td>
+<td>stable</td>
+<td>chat assistants with follow-up questions</td>
+</tr>
+<tr>
+<td><code>hierarchical</code></td>
 <td>planned</td>
-<td>multi-turn chat: follow-up rewriting with chat history</td>
+<td>RAPTOR-style summary trees</td>
 </tr>
 <tr>
 <td><code>corrective</code></td>
@@ -1094,6 +1148,10 @@ description at ingest:</p>
 </code></pre></div>
 <p>Set <code>requirements.data_types</code> to include <code>diagrams</code>, <code>images</code>, <code>screenshots</code>, <code>scanned</code>, …
 and the selector recommends it.</p>
+<h2 id="conversational">conversational<a class="headerlink" href="#conversational" title="Permanent link">&para;</a></h2>
+<p><code>hybrid</code> retrieval plus chat sessions stored in SQLite. Each follow-up is rewritten into a
+standalone question before retrieval. <code>chat()</code> works with every blueprint; this one just
+sets good defaults. See <a href="../conversations/">Conversations</a>.</p>
 <h2 id="sql">sql<a class="headerlink" href="#sql" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>question + schema → LLM writes one SELECT → SQLite (read-only) → result rows → generator
 </code></pre></div>

@@ -620,6 +620,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../conversations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conversations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../operations/" class="md-nav__link">
         
   
@@ -837,7 +864,7 @@
 <tr>
 <td><code>store</code></td>
 <td><code>add</code>, <code>search</code>, <code>delete</code>, <code>persist</code>, <code>load</code></td>
-<td><code>memory</code>, <code>qdrant</code>, <code>pgvector</code></td>
+<td><code>memory</code>, <code>qdrant</code>, <code>pgvector</code>, <code>chroma</code>, <code>lancedb</code></td>
 </tr>
 <tr>
 <td><code>keyword_index</code></td>
@@ -909,6 +936,10 @@ merged result with <code>ragpick validate</code>.</p>
 <tr>
 <td><code>complex_questions</code> (multi-part, comparisons)</td>
 <td><code>agentic</code></td>
+</tr>
+<tr>
+<td><code>conversational</code> (follow-up questions)</td>
+<td><code>conversational</code> (chat works with every blueprint)</td>
 </tr>
 <tr>
 <td><code>multi_tenant</code></td>
@@ -984,6 +1015,16 @@ in <code>ragpick.selector.rules.RULES</code> and are easy to extend.</p>
 <td><code>pgvector</code></td>
 <td>teams already running PostgreSQL</td>
 <td><code>pip install "psycopg[binary]"</code>, the <code>vector</code> extension</td>
+</tr>
+<tr>
+<td><code>chroma</code></td>
+<td>local development, Chroma servers</td>
+<td><code>pip install chromadb</code>; <code>path</code>, or <code>host</code>/<code>port</code></td>
+</tr>
+<tr>
+<td><code>lancedb</code></td>
+<td>embedded, file- or object-storage-based (S3)</td>
+<td><code>pip install lancedb</code>; defaults to <code>&lt;index_dir&gt;/lancedb</code></td>
 </tr>
 </tbody>
 </table>

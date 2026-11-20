@@ -514,6 +514,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#gating-ci-on-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gating CI on quality
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tips" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -601,6 +612,33 @@
     
   
     Multi-tenancy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conversations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conversations
   
 
     
@@ -769,6 +807,17 @@
     <span class="md-ellipsis">
       
         Metrics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gating-ci-on-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gating CI on quality
       
     </span>
   </a>
@@ -977,6 +1026,23 @@ in <code>ragpick/eval/prompts.py</code>.</p>
 <span class="w">  </span><span class="nt">judge</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="nv">openai</span><span class="p p-Indicator">,</span><span class="nt"> params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="nv">gpt-4o-mini</span><span class="p p-Indicator">}}</span>
 <span class="w">  </span><span class="nt">prices</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">my-finetuned-model</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">prompt_per_1m</span><span class="p">:</span><span class="w"> </span><span class="nv">0.30</span><span class="p p-Indicator">,</span><span class="nt"> completion_per_1m</span><span class="p">:</span><span class="w"> </span><span class="nv">1.20</span><span class="p p-Indicator">}</span>
+</code></pre></div>
+<h2 id="gating-ci-on-quality">Gating CI on quality<a class="headerlink" href="#gating-ci-on-quality" title="Permanent link">&para;</a></h2>
+<p>Fail the build when retrieval quality drops or answers get slow or expensive:</p>
+<div class="highlight"><pre><span></span><code>ragpick<span class="w"> </span><span class="nb">eval</span><span class="w"> </span>eval.jsonl<span class="w"> </span>-c<span class="w"> </span>rag.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--fail-under<span class="w"> </span>hit_rate@k<span class="o">=</span><span class="m">0</span>.85<span class="w"> </span>--fail-under<span class="w"> </span><span class="nv">mrr</span><span class="o">=</span><span class="m">0</span>.6<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--fail-over<span class="w"> </span><span class="nv">latency_p95_ms</span><span class="o">=</span><span class="m">2000</span><span class="w"> </span>--fail-over<span class="w"> </span><span class="nv">est_cost_usd</span><span class="o">=</span><span class="m">0</span>.50
+</code></pre></div>
+<p>or keep the thresholds next to the config:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">eval</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">fail_under</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">hit_rate@k</span><span class="p">:</span><span class="w"> </span><span class="nv">0.85</span><span class="p p-Indicator">,</span><span class="nt"> faithfulness</span><span class="p">:</span><span class="w"> </span><span class="nv">0.8</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">fail_over</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">latency_p95_ms</span><span class="p">:</span><span class="w"> </span><span class="nv">2000</span><span class="p p-Indicator">}</span>
+</code></pre></div>
+<p>Misses are printed and the command exits with status <strong>1</strong>; CLI flags override config
+values. A required metric that isn't available (e.g. <code>faithfulness</code> without a judge) also
+fails, so a misconfigured job can't pass silently. In GitHub Actions:</p>
+<div class="highlight"><pre><span></span><code><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pip install ragpick</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ragpick eval eval.jsonl -c rag.yaml --data docs --fail-under hit_rate@k=0.85</span>
 </code></pre></div>
 <h2 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h2>
 <ul>

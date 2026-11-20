@@ -526,6 +526,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#conversation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conversation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#api-key-each-entry-of-serveapi_keys" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -700,6 +711,33 @@
     
   
     Multi-tenancy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conversations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conversations
   
 
     
@@ -941,6 +979,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#conversation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        conversation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#api-key-each-entry-of-serveapi_keys" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1096,6 +1145,12 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 <td>Multi-tenancy.</td>
 </tr>
 <tr>
+<td><code>conversation</code></td>
+<td>ConversationConfig</td>
+<td>see section</td>
+<td>Chat sessions.</td>
+</tr>
+<tr>
 <td><code>index_dir</code></td>
 <td>str</td>
 <td><code>'.ragpick/index'</code></td>
@@ -1150,6 +1205,12 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 <td>bool</td>
 <td><code>False</code></td>
 <td>Several customers' data must be kept in separate indexes.</td>
+</tr>
+<tr>
+<td><code>conversational</code></td>
+<td>bool</td>
+<td><code>False</code></td>
+<td>Users ask follow-up questions in a chat.</td>
 </tr>
 <tr>
 <td><code>multi_hop</code></td>
@@ -1314,6 +1375,18 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 <td>dict[str, PriceSpec]</td>
 <td><code>{}</code></td>
 <td>Model name → price; merged over ragpick's built-in price table.</td>
+</tr>
+<tr>
+<td><code>fail_under</code></td>
+<td>dict[str, float]</td>
+<td><code>{}</code></td>
+<td>Minimum metric values, e.g. <code>{hit_rate@k: 0.8}</code>; <code>ragpick eval</code> fails below.</td>
+</tr>
+<tr>
+<td><code>fail_over</code></td>
+<td>dict[str, float]</td>
+<td><code>{}</code></td>
+<td>Maximum metric values, e.g. <code>{latency_p95_ms: 1500}</code>; eval fails above.</td>
 </tr>
 </tbody>
 </table>
@@ -1489,6 +1562,50 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 </tr>
 </tbody>
 </table>
+<h2 id="conversation"><code>conversation</code><a class="headerlink" href="#conversation" title="Permanent link">&para;</a></h2>
+<p>Chat sessions (<code>chat()</code>, <code>ragpick chat</code>, <code>POST /chat</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rewrite</code></td>
+<td><code>auto</code> | <code>llm</code> | <code>heuristic</code> | <code>off</code></td>
+<td><code>'auto'</code></td>
+<td>How follow-ups become standalone questions (<code>auto</code>: LLM if real).</td>
+</tr>
+<tr>
+<td><code>max_turns</code></td>
+<td>int</td>
+<td><code>10</code></td>
+<td>Turns kept per session.</td>
+</tr>
+<tr>
+<td><code>store</code></td>
+<td><code>memory</code> | <code>sqlite</code></td>
+<td><code>'memory'</code></td>
+<td><code>sqlite</code> keeps sessions in <code>&lt;index_dir&gt;/sessions.sqlite</code>.</td>
+</tr>
+<tr>
+<td><code>max_sessions</code></td>
+<td>int</td>
+<td><code>1000</code></td>
+<td>Sessions kept by the memory store (LRU).</td>
+</tr>
+<tr>
+<td><code>ttl_seconds</code></td>
+<td>float | null</td>
+<td><code>None</code></td>
+<td>Forget idle sessions after this.</td>
+</tr>
+</tbody>
+</table>
 <h2 id="api-key-each-entry-of-serveapi_keys">API key (each entry of <code>serve.api_keys</code>)<a class="headerlink" href="#api-key-each-entry-of-serveapi_keys" title="Permanent link">&para;</a></h2>
 <p>An API key for <code>ragpick serve</code> and the groups its holder may act as.</p>
 <table>
@@ -1574,6 +1691,18 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 <td>ServeConfig</td>
 <td>see section</td>
 <td>HTTP API settings.</td>
+</tr>
+<tr>
+<td><code>conversation</code></td>
+<td>ConversationConfig</td>
+<td>see section</td>
+<td>Chat sessions.</td>
+</tr>
+<tr>
+<td><code>sessions_dir</code></td>
+<td>str</td>
+<td><code>'.ragpick/router'</code></td>
+<td>Where <code>store: sqlite</code> sessions live.</td>
 </tr>
 </tbody>
 </table>

@@ -505,6 +505,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../conversations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conversations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../operations/" class="md-nav__link">
         
   
@@ -740,6 +767,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#v08" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.8
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tooling" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -899,6 +937,17 @@
     <span class="md-ellipsis">
       
         v0.7
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v08" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.8
       
     </span>
   </a>
@@ -1179,6 +1228,24 @@ interfaces extensible. Each decision is listed here so it can be revisited.</p>
 <li><strong>Generated datasets are a starting point.</strong> Chunks are sampled round-robin across
     documents for coverage. LLM output that doesn't parse falls back to the heuristic,
     and restricted documents' groups are copied onto their questions.</li>
+</ol>
+<h2 id="v08">v0.8<a class="headerlink" href="#v08" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Conversations rewrite, then retrieve</strong>: the grounded pipeline always sees one
+    standalone question, so retrieval, citations, access control and evaluation are
+    unchanged. History isn't injected into the answer prompt.</li>
+<li><strong>The offline rewrite is conservative</strong>: only messages that look like follow-ups
+    (short, a follow-up opener, or a pronoun) get the previous question attached.</li>
+<li><strong>Sessions are owned by (API key, tenant)</strong>, and a foreign session id behaves exactly
+    like an unknown one (404), so session ids can't be used to probe or read history.</li>
+<li><strong>Thresholds are explicit and strict</strong>: <code>--fail-under</code> / <code>--fail-over</code> per metric;
+    missing metrics fail; CLI values override config values.</li>
+<li><strong>Chroma filters use derived scalar fields</strong> (<code>m:</code>, <code>l:</code>, <code>acl:</code>) because Chroma
+    metadata can't hold lists and <code>where</code> can't test membership; the original metadata
+    is stored as JSON. A reference evaluator checks the translation against
+    <code>matches_filters</code> in tests.</li>
+<li><strong>LanceDB filters use a <code>tags</code> list column</strong> (<code>key=value</code>) and <code>array_has_any</code>, with
+    every value quoted and escaped, and run as a pre-filter before vector ranking.</li>
 </ol>
 <h2 id="tooling">Tooling<a class="headerlink" href="#tooling" title="Permanent link">&para;</a></h2>
 <ol>

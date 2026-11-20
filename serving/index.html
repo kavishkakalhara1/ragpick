@@ -598,6 +598,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../conversations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conversations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../operations/" class="md-nav__link">
         
   
@@ -804,6 +831,16 @@ application is a plain ASGI app, so you can also mount it in your own server:</p
 <td><code>POST /retrieve</code></td>
 <td>same</td>
 <td><code>{"contexts": [...]}</code> (no generation)</td>
+</tr>
+<tr>
+<td><code>POST /chat</code></td>
+<td><code>{"message", "session_id"?, "groups"?, "tenant"?, "stream"?}</code></td>
+<td>answer + <code>session_id</code>, <code>standalone_question</code> (<a href="../conversations/">Conversations</a>)</td>
+</tr>
+<tr>
+<td><code>DELETE /sessions/{id}</code></td>
+<td>–</td>
+<td>forget a chat session (owner only)</td>
 </tr>
 </tbody>
 </table>
