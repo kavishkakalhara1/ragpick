@@ -31,6 +31,13 @@ def make_chunks(
     return chunks
 
 
+@pytest.fixture(autouse=True)
+def wide_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Rich wraps CLI output at the terminal width; pin it so assertions don't depend
+    on the length of temporary paths or the CI runner's terminal."""
+    monkeypatch.setenv("COLUMNS", "200")
+
+
 @pytest.fixture
 def embedder() -> FakeEmbedder:
     return FakeEmbedder(dimension=64)

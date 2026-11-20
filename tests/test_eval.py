@@ -325,7 +325,8 @@ def test_write_reports(tmp_path: Path) -> None:
     assert payload["reports"][0]["label"] == "naive"
     assert len(payload["reports"][0]["results"]) == reports[0].num_examples
     csv_path = write_reports(reports, tmp_path / "results.csv")
-    rows = list(csv.DictReader(csv_path.open(encoding="utf-8")))
+    with csv_path.open(encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
     assert rows[0]["label"] == "naive"
     assert rows[0]["faithfulness"] == ""
     assert float(rows[0]["hit_rate@k"]) >= 0

@@ -276,7 +276,7 @@ def test_router_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     runner = CliRunner()
     valid = runner.invoke(app, ["validate", "-c", str(path)])
     assert valid.exit_code == 0, valid.output
-    assert "valid router (2 routes)" in valid.output
+    assert "valid router (2 routes)" in " ".join(valid.output.split())  # ignore line wraps
     ingest = runner.invoke(app, ["ingest", "-c", str(path)])
     assert ingest.exit_code == 0, ingest.output
     assert "general:" in ingest.output

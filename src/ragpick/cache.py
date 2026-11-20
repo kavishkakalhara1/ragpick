@@ -8,6 +8,7 @@ as part of a hash.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -90,9 +91,21 @@ class Cache:
         return int(removed)
 
     def close(self) -> None:
-        """Close the database connection."""
+        """Close the database connection (safe to call more than once)."""
         with self._lock:
             self._conn.close()
+
+    def __enter__(self) -> Cache:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
+
+    def __del__(self) -> None:
+        conn = getattr(self, "_conn", None)
+        if conn is not None:
+            with contextlib.suppress(Exception):  # e.g. interpreter shutdown
+                conn.close()
 
 
 class CachedEmbedder:
