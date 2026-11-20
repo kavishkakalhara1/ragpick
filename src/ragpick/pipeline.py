@@ -18,6 +18,7 @@ from ragpick import interfaces, tracing
 from ragpick.cache import Cache, CachedEmbedder, wrap_generator
 from ragpick.components.generators import parse_citations
 from ragpick.config import ComponentSpec, RagConfig, TenancyConfig, build_config, load_config
+from ragpick.conversation import ConversationManager, make_store, owner_key
 from ragpick.errors import ConfigError, IndexNotFoundError, TenantError
 from ragpick.filters import acl_filter
 from ragpick.models import Answer, RetrievedChunk, StreamEvent, Usage
@@ -105,6 +106,7 @@ class Pipeline:
         self._injected = dict(components or {})
         self._loaded = False
         self._tenants: OrderedDict[str, Pipeline] = OrderedDict()
+        self._conversations: ConversationManager | None = None
         self._tenant_lock = threading.Lock()
         c = config.components
         self.cache: Cache | None = None
@@ -228,6 +230,70 @@ class Pipeline:
         if self.config.tenancy.enabled:
             return True
         return self.has_index() or not self.requires_ingest
+
+    # ------------------------------------------------------------------ conversations
+    @property
+    def conversations(self) -> ConversationManager:
+        """The pipeline's chat-session manager (created on first use)."""
+        if self._conversations is None:
+            cfg = self.config.conversation
+            gen = self.generator
+            real = isinstance(gen, interfaces.TextCompleter) and not getattr(gen, "is_fake", False)
+            llm = gen if isinstance(gen, interfaces.TextCompleter) and real else None
+            self._conversations = ConversationManager(cfg, make_store(cfg, self.index_dir), llm)
+        return self._conversations
+
+    def chat(
+        self,
+        message: str,
+        *,
+        session_id: str | None = None,
+        owner: str | None = None,
+        groups: list[str] | None = None,
+        filters: dict[str, Any] | None = None,
+        top_k: int | None = None,
+        trace: bool | None = None,
+        tenant: str | None = None,
+    ) -> Answer:
+        """Answer a chat message, rewriting follow-ups with the session's history.
+
+        Returns an :class:`Answer` with ``session_id`` (pass it back for the next turn)
+        and ``standalone_question``. ``owner`` (e.g. an API key name) scopes sessions.
+        """
+        return self.conversations.chat(
+            self.query,
+            message,
+            session_id,
+            owner_key(owner, tenant),
+            groups=groups,
+            filters=filters,
+            top_k=top_k,
+            trace=trace,
+            tenant=tenant,
+        )
+
+    def chat_stream(
+        self,
+        message: str,
+        *,
+        session_id: str | None = None,
+        owner: str | None = None,
+        groups: list[str] | None = None,
+        filters: dict[str, Any] | None = None,
+        top_k: int | None = None,
+        tenant: str | None = None,
+    ) -> Iterator[StreamEvent]:
+        """Streaming :meth:`chat`; the final ``answer`` event carries ``session_id``."""
+        return self.conversations.chat_stream(
+            self.stream,
+            message,
+            session_id,
+            owner_key(owner, tenant),
+            groups=groups,
+            filters=filters,
+            top_k=top_k,
+            tenant=tenant,
+        )
 
     # ------------------------------------------------------------------ tenancy
     def for_tenant(self, tenant: str) -> Pipeline:

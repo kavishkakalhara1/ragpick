@@ -10,7 +10,7 @@ A pipeline is made of small, swappable components. Each one is a `typing.Protoco
 | `loader` | `load(path) -> Iterable[Document]` | `directory`, `text`, `pdf`, `csv`, `multimodal`, `langchain`, `llamaindex` |
 | `chunker` | `split(docs) -> list[Chunk]` | `recursive`, `fixed`, `parent_child`, `none` |
 | `embedder` | `embed(texts)`, `dimension` (optional `embed_query`) | `fake`, `openai`, `sentence_transformers`, `langchain`, `llamaindex` |
-| `store` | `add`, `search`, `delete`, `persist`, `load` | `memory`, `qdrant`, `pgvector` |
+| `store` | `add`, `search`, `delete`, `persist`, `load` | `memory`, `qdrant`, `pgvector`, `chroma`, `lancedb` |
 | `keyword_index` | `add`, `search`, `persist`, `load` | `bm25` |
 | `retriever` | `retrieve(query, k, filters)` | `vector`, `keyword`, `hybrid`, `parent_child`, `corrective`, `graph`, `agentic`, `sql`, `langchain`, `llamaindex` |
 | `reranker` | `rerank(query, chunks, top_n)` | `none`, `cross_encoder` |
@@ -70,6 +70,7 @@ merged result with `ragpick validate`.
 |---|---|
 | `multi_hop` (facts spread across documents) | `graph` |
 | `complex_questions` (multi-part, comparisons) | `agentic` |
+| `conversational` (follow-up questions) | `conversational` (chat works with every blueprint) |
 | `multi_tenant` | reason: enable `tenancy` (see [Multi-tenancy](tenancy.md)) |
 | long, structured documents | `parent_child` |
 | small corpus, not keyword-heavy | `naive` |
@@ -95,6 +96,8 @@ in `ragpick.selector.rules.RULES` and are easy to extend.
 | `memory` | prototypes, up to a few hundred thousand chunks | exact search, persisted to `index_dir` |
 | `qdrant` | large corpora, a dedicated vector DB | `pip install "ragpick[qdrant]"` |
 | `pgvector` | teams already running PostgreSQL | `pip install "psycopg[binary]"`, the `vector` extension |
+| `chroma` | local development, Chroma servers | `pip install chromadb`; `path`, or `host`/`port` |
+| `lancedb` | embedded, file- or object-storage-based (S3) | `pip install lancedb`; defaults to `<index_dir>/lancedb` |
 
 ```yaml
 components:

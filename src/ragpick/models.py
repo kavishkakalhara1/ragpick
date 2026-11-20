@@ -68,6 +68,8 @@ class Answer(BaseModel):
     contexts: list[RetrievedChunk] = Field(default_factory=list)
     usage: Usage = Field(default_factory=Usage)
     route: str | None = None
+    session_id: str | None = None
+    standalone_question: str | None = None
     trace: Span | None = None
 
 

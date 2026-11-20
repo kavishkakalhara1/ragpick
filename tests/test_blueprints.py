@@ -10,9 +10,10 @@ from ragpick.errors import BlueprintError
 def test_list_blueprints_roadmap_order() -> None:
     names = [bp.name for bp in list_blueprints()]
     stable = [
-        "naive", "hybrid", "parent_child", "corrective", "graph", "agentic", "multimodal", "sql"
+        "naive", "hybrid", "parent_child", "corrective", "graph", "agentic", "multimodal",
+        "conversational", "sql",
     ]  # fmt: skip
-    assert names == [*stable, "conversational"]
+    assert names == [*stable, "hierarchical"]
     assert [bp.name for bp in list_blueprints(include_planned=False)] == stable
     assert get_blueprint("sql").metadata.data == "structured"
     assert get_blueprint("corrective").metadata.data == "documents"
@@ -26,7 +27,7 @@ def test_planned_blueprints_have_descriptions_and_no_defaults() -> None:
             assert bp.defaults == {}
 
 
-@pytest.mark.parametrize("name", ["naive", "hybrid", "parent_child", "corrective", "graph", "sql"])
+@pytest.mark.parametrize("name", [bp.name for bp in list_blueprints(include_planned=False)])
 def test_stable_blueprints_produce_valid_configs(name: str) -> None:
     cfg = build_config({"blueprint": name})
     assert cfg.blueprint == name

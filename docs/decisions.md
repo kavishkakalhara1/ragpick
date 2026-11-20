@@ -244,6 +244,24 @@ interfaces extensible. Each decision is listed here so it can be revisited.
     documents for coverage. LLM output that doesn't parse falls back to the heuristic,
     and restricted documents' groups are copied onto their questions.
 
+## v0.8
+
+79. **Conversations rewrite, then retrieve**: the grounded pipeline always sees one
+    standalone question, so retrieval, citations, access control and evaluation are
+    unchanged. History isn't injected into the answer prompt.
+80. **The offline rewrite is conservative**: only messages that look like follow-ups
+    (short, a follow-up opener, or a pronoun) get the previous question attached.
+81. **Sessions are owned by (API key, tenant)**, and a foreign session id behaves exactly
+    like an unknown one (404), so session ids can't be used to probe or read history.
+82. **Thresholds are explicit and strict**: `--fail-under` / `--fail-over` per metric;
+    missing metrics fail; CLI values override config values.
+83. **Chroma filters use derived scalar fields** (`m:`, `l:`, `acl:`) because Chroma
+    metadata can't hold lists and `where` can't test membership; the original metadata
+    is stored as JSON. A reference evaluator checks the translation against
+    `matches_filters` in tests.
+84. **LanceDB filters use a `tags` list column** (`key=value`) and `array_has_any`, with
+    every value quoted and escaped, and run as a pre-filter before vector ranking.
+
 ## Tooling
 
 31. **`types-PyYAML` is not a dev dependency** (it wasn't in the approved list), so mypy

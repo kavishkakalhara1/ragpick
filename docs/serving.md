@@ -26,6 +26,8 @@ application = asgi_app(App(load_engine("rag.yaml")))  # uvicorn module:applicati
 | `GET /info` | – | name, blueprint, version, routes (for routers) |
 | `POST /query` | `{"question", "groups"?, "filters"?, "top_k"?, "trace"?}` | `{"text", "citations", "route", "contexts", "usage", "trace"?}` |
 | `POST /retrieve` | same | `{"contexts": [...]}` (no generation) |
+| `POST /chat` | `{"message", "session_id"?, "groups"?, "tenant"?, "stream"?}` | answer + `session_id`, `standalone_question` ([Conversations](conversations.md)) |
+| `DELETE /sessions/{id}` | – | forget a chat session (owner only) |
 
 ```bash
 curl -s localhost:8000/query \

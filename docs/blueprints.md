@@ -11,7 +11,8 @@ Run `ragpick blueprints` to see this list in your terminal.
 | `graph` | stable | multi-hop and "main themes" questions (GraphRAG local + global search) |
 | `agentic` | stable | multi-part and comparison questions needing several lookups |
 | `multimodal` | stable | images, diagrams, scans and charts inside documents |
-| `conversational` | planned | multi-turn chat: follow-up rewriting with chat history |
+| `conversational` | stable | chat assistants with follow-up questions |
+| `hierarchical` | planned | RAPTOR-style summary trees |
 | `corrective` | stable | noisy corpora, high-stakes answers: grade retrieval, retry, or refuse |
 
 ## naive
@@ -228,6 +229,12 @@ cache: {enabled: true}
 
 Set `requirements.data_types` to include `diagrams`, `images`, `screenshots`, `scanned`, …
 and the selector recommends it.
+
+## conversational
+
+`hybrid` retrieval plus chat sessions stored in SQLite. Each follow-up is rewritten into a
+standalone question before retrieval. `chat()` works with every blueprint; this one just
+sets good defaults. See [Conversations](conversations.md).
 
 ## sql
 

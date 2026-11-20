@@ -2,12 +2,14 @@
 
 from ragpick.components import (
     agentic,
+    chroma,
     chunkers,
     corrective,
     embedders,
     generators,
     graph,
     keyword,
+    lancedb,
     loaders,
     multimodal,
     pgvector,
@@ -19,12 +21,14 @@ from ragpick.components import (
 
 __all__ = [
     "agentic",
+    "chroma",
     "chunkers",
     "corrective",
     "embedders",
     "generators",
     "graph",
     "keyword",
+    "lancedb",
     "loaders",
     "multimodal",
     "pgvector",

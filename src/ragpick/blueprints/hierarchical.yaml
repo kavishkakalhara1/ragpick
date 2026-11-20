@@ -1,0 +1,11 @@
+metadata:
+  name: hierarchical
+  description: >-
+    RAPTOR-style retrieval: cluster chunks and summarise them recursively into a
+    tree, then retrieve across levels so both details and high-level answers are
+    covered.
+  best_for:
+    - long reports and books where questions range from details to overall themes
+  tradeoffs:
+    - expensive recursive summarisation at ingest
+  status: planned

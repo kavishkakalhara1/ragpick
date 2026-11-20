@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-20
+
+### Added
+
+- Conversations: `chat()` / `chat_stream()` on every pipeline and router. Follow-ups are
+  rewritten into standalone questions (LLM, or offline context carry-over), history is
+  capped (`max_turns`), and sessions are stored in memory or SQLite and scoped to their
+  owner (API key + tenant). `ragpick chat` (interactive), `POST /chat` (streaming
+  supported), `DELETE /sessions/{id}`, `conversation:` config, and a stable
+  `conversational` blueprint. `requirements.conversational`.
+- `ragpick eval --fail-under METRIC=VALUE` / `--fail-over METRIC=VALUE` (and
+  `eval.fail_under` / `eval.fail_over` in config) exit with status 1 when quality or
+  latency/cost thresholds are missed, for CI. Required-but-missing metrics fail too.
+- Chroma (`store: chroma`) and LanceDB (`store: lancedb`) vector stores, with ragpick
+  filters and `allowed_groups` access control applied inside each store. Install
+  `chromadb` / `lancedb` yourself; no new extras.
+- `hierarchical` (RAPTOR-style) added to the roadmap as a planned blueprint.
+
 ## [0.7.1] - 2026-11-20
 
 ### Fixed
@@ -186,7 +204,8 @@ All notable changes to this project are documented here. The format follows
   relevance, latency percentiles, tokens and estimated cost; JSON/CSV output.
 - CLI: `init`, `recommend`, `blueprints`, `ingest`, `query`, `eval`, `validate`.
 
-[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/kavishkakalhara1/ragpick/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.5.0...v0.6.0

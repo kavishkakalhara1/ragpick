@@ -130,6 +130,33 @@ eval:
     my-finetuned-model: {prompt_per_1m: 0.30, completion_per_1m: 1.20}
 ```
 
+## Gating CI on quality
+
+Fail the build when retrieval quality drops or answers get slow or expensive:
+
+```bash
+ragpick eval eval.jsonl -c rag.yaml \
+  --fail-under hit_rate@k=0.85 --fail-under mrr=0.6 \
+  --fail-over latency_p95_ms=2000 --fail-over est_cost_usd=0.50
+```
+
+or keep the thresholds next to the config:
+
+```yaml
+eval:
+  fail_under: {hit_rate@k: 0.85, faithfulness: 0.8}
+  fail_over: {latency_p95_ms: 2000}
+```
+
+Misses are printed and the command exits with status **1**; CLI flags override config
+values. A required metric that isn't available (e.g. `faithfulness` without a judge) also
+fails, so a misconfigured job can't pass silently. In GitHub Actions:
+
+```yaml
+- run: pip install ragpick
+- run: ragpick eval eval.jsonl -c rag.yaml --data docs --fail-under hit_rate@k=0.85
+```
+
 ## Tips
 
 - If `cache` is enabled, repeated runs reuse answers: costs drop to zero and latencies to

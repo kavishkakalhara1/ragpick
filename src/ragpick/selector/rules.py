@@ -191,6 +191,17 @@ RULES: list[Rule] = [
         ),
     ),
     Rule(
+        id="conversational",
+        when=lambda c: _r(c).conversational,
+        blueprint="conversational",
+        priority=35,
+        reason=(
+            "Follow-up questions: chat() rewrites each follow-up into a standalone question "
+            "using the session history. This works with every blueprint; the conversational "
+            "blueprint adds hybrid retrieval and persistent sessions."
+        ),
+    ),
+    Rule(
         id="multi_hop_strict",
         when=lambda c: _r(c).multi_hop and _r(c).strict_grounding,
         warning=(

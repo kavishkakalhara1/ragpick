@@ -35,8 +35,10 @@ from ragpick.errors import RagpickError
 from ragpick.eval.runner import (
     METRICS,
     EvalReport,
+    check_thresholds,
     evaluate_configs,
     parse_judge_option,
+    parse_thresholds,
     write_reports,
 )
 from ragpick.router import Router, load_engine
@@ -180,6 +182,7 @@ def _ask_requirements() -> Requirements:
     multi_hop = _confirm("Do questions connect facts across several documents?", False)
     complex_q = _confirm("Are questions often multi-part or comparisons (A vs B)?", False)
     tenants = _confirm("Must several customers' data be kept separate (multi-tenant)?", False)
+    chatty = _confirm("Will users ask follow-up questions in a chat?", False)
     strict = _confirm('Is a wrong answer worse than "I don\'t know"?', False)
     latency = _ask("Latency requirement", "normal", ["low", "normal"])
     citations = _confirm("Must answers cite their sources?", True)
@@ -193,6 +196,7 @@ def _ask_requirements() -> Requirements:
             "multi_hop": multi_hop,
             "complex_questions": complex_q,
             "multi_tenant": tenants,
+            "conversational": chatty,
             "strict_grounding": strict,
             "latency": latency,
             "needs_citations": citations,
@@ -529,8 +533,16 @@ def eval_cmd(
     output: Annotated[
         Path | None, typer.Option("--output", "-o", help="Write results (.json or .csv).")
     ] = None,
+    fail_under: Annotated[
+        list[str] | None,
+        typer.Option(help="Fail (exit 1) if METRIC < VALUE, e.g. hit_rate@k=0.8 (repeatable)."),
+    ] = None,
+    fail_over: Annotated[
+        list[str] | None,
+        typer.Option(help="Fail (exit 1) if METRIC > VALUE, e.g. latency_p95_ms=1500."),
+    ] = None,
 ) -> None:
-    """Evaluate one or more configs on a dataset and compare them."""
+    """Evaluate one or more configs on a dataset and compare them (gate CI with thresholds)."""
     configs = config or [DEFAULT_CONFIG]
     with Progress(
         TextColumn("[progress.description]{task.description}"),
@@ -558,6 +570,28 @@ def eval_cmd(
     if output is not None:
         written = write_reports(reports, output)
         console.print(f"[green]✓[/] Wrote {written}")
+    under, over = _config_thresholds(configs)
+    under.update(parse_thresholds(fail_under or []))
+    over.update(parse_thresholds(fail_over or []))
+    if under or over:
+        failures = check_thresholds(reports, under, over)
+        if failures:
+            for failure in failures:
+                err_console.print(f"[bold red]✗[/] {escape(failure)}")
+            raise typer.Exit(1)
+        console.print(f"[green]✓[/] All {len(under) + len(over)} thresholds passed")
+
+
+def _config_thresholds(configs: list[Path]) -> tuple[dict[str, float], dict[str, float]]:
+    """``eval.fail_under`` / ``eval.fail_over`` merged across the evaluated configs."""
+    under: dict[str, float] = {}
+    over: dict[str, float] = {}
+    for path in configs:
+        raw = read_yaml(path)
+        section = raw.get("eval") or {}
+        under.update({str(k): float(v) for k, v in (section.get("fail_under") or {}).items()})
+        over.update({str(k): float(v) for k, v in (section.get("fail_over") or {}).items()})
+    return under, over
 
 
 # --------------------------------------------------------------------------- generate-eval
@@ -727,6 +761,52 @@ def validate_cmd(config: ConfigOpt = DEFAULT_CONFIG, set_: SetOpt = None) -> Non
         console.print(f"[green]✓[/] {config} is valid")
         merged = _mask_secrets(cfg.model_dump(mode="json"))
     console.print(yaml.safe_dump(merged, sort_keys=False), highlight=False, markup=False)
+
+
+# --------------------------------------------------------------------------- chat
+@app.command()
+@friendly
+def chat(
+    config: ConfigOpt = DEFAULT_CONFIG,
+    groups: Annotated[str | None, typer.Option(help="Caller's groups, e.g. support,hr.")] = None,
+    tenant: Annotated[str | None, typer.Option(help="Tenant (multi-tenant).")] = None,
+    session: Annotated[
+        str | None, typer.Option(help="Resume a session (with conversation.store: sqlite).")
+    ] = None,
+    set_: SetOpt = None,
+) -> None:
+    """Chat interactively; follow-up questions use the conversation so far.
+
+    Type /reset to start a new session and /exit (or Ctrl-D) to quit.
+    """
+    engine = load_engine(config, _overrides(set_))
+    session_id = session
+    console.print("[dim]Chat started. /reset for a new session, /exit to quit.[/]")
+    while True:
+        try:
+            message = Prompt.ask("[bold cyan]you[/]", console=console)
+        except (EOFError, KeyboardInterrupt):
+            break
+        message = message.strip()
+        if not message:
+            continue
+        if message in ("/exit", "/quit"):
+            break
+        if message == "/reset":
+            session_id = None
+            console.print("[dim]New session.[/]")
+            continue
+        answer = engine.chat(
+            message, session_id=session_id, groups=_split_groups(groups), tenant=tenant
+        )
+        session_id = answer.session_id
+        if answer.standalone_question and answer.standalone_question != message:
+            console.print(f"[dim]↳ {escape(answer.standalone_question)}[/]")
+        console.print(Text(answer.text), style="green")
+        if answer.citations:
+            console.print("[dim]Citations: " + escape(", ".join(answer.citations)) + "[/]")
+    if session_id:
+        console.print(f"[dim]Session: {session_id}[/]")
 
 
 # --------------------------------------------------------------------------- serve

@@ -40,6 +40,7 @@ from ragpick import tracing
 from ragpick.components.generators import IDK
 from ragpick.components.keyword import tokenize
 from ragpick.config import (
+    ConversationConfig,
     EvalConfig,
     RouterConfig,
     ServeConfig,
@@ -49,6 +50,7 @@ from ragpick.config import (
     load_router_config,
     read_yaml,
 )
+from ragpick.conversation import ConversationManager, make_store, owner_key
 from ragpick.errors import ConfigError
 from ragpick.interfaces import TextCompleter
 from ragpick.models import Answer, RetrievedChunk, StreamEvent
@@ -117,6 +119,8 @@ class Router:
         tracing_config: TracingConfig | None = None,
         serve_config: ServeConfig | None = None,
         exporters: Sequence[Any] = (),
+        conversation_config: ConversationConfig | None = None,
+        sessions_dir: Path | None = None,
     ) -> None:
         if not routes:
             raise ConfigError("A router needs at least one route")
@@ -150,6 +154,9 @@ class Router:
         self.tracing_config = tracing_config or TracingConfig()
         self.serve_config = serve_config or ServeConfig()
         self.exporters = list(exporters)
+        self.conversation_config = conversation_config or ConversationConfig()
+        self.sessions_dir = sessions_dir or Path(".ragpick/router")
+        self._conversations: ConversationManager | None = None
 
     # ------------------------------------------------------------------ building
     @classmethod
@@ -195,6 +202,8 @@ class Router:
             tracing_config=config.tracing,
             serve_config=config.serve,
             exporters=exporters,
+            conversation_config=config.conversation,
+            sessions_dir=config.resolve_path(config.sessions_dir),
         )
 
     # ------------------------------------------------------------------ summary (eval/serve)
@@ -349,6 +358,66 @@ class Router:
                 second.route = backup.name
                 return second
         return answer
+
+    # ------------------------------------------------------------------ conversations
+    @property
+    def conversations(self) -> ConversationManager:
+        """The router's chat-session manager (routing uses the standalone question)."""
+        if self._conversations is None:
+            self._conversations = ConversationManager(
+                self.conversation_config,
+                make_store(self.conversation_config, self.sessions_dir),
+                self.llm,
+            )
+        return self._conversations
+
+    def chat(
+        self,
+        message: str,
+        *,
+        session_id: str | None = None,
+        owner: str | None = None,
+        groups: list[str] | None = None,
+        filters: dict[str, Any] | None = None,
+        top_k: int | None = None,
+        trace: bool | None = None,
+        tenant: str | None = None,
+    ) -> Answer:
+        """Chat turn: rewrite the follow-up, then route and answer it."""
+        return self.conversations.chat(
+            self.query,
+            message,
+            session_id,
+            owner_key(owner, tenant),
+            groups=groups,
+            filters=filters,
+            top_k=top_k,
+            trace=trace,
+            tenant=tenant,
+        )
+
+    def chat_stream(
+        self,
+        message: str,
+        *,
+        session_id: str | None = None,
+        owner: str | None = None,
+        groups: list[str] | None = None,
+        filters: dict[str, Any] | None = None,
+        top_k: int | None = None,
+        tenant: str | None = None,
+    ) -> Iterator[StreamEvent]:
+        """Streaming :meth:`chat`."""
+        return self.conversations.chat_stream(
+            self.stream,
+            message,
+            session_id,
+            owner_key(owner, tenant),
+            groups=groups,
+            filters=filters,
+            top_k=top_k,
+            tenant=tenant,
+        )
 
     # ------------------------------------------------------------------ ingest
     def ingest(

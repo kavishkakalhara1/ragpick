@@ -33,6 +33,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from ragpick import __version__
 from ragpick.config import ApiKeySpec, ServeConfig
+from ragpick.conversation import ConversationError, owner_key, validate_session_id
 from ragpick.errors import (
     ConfigError,
     IndexNotFoundError,
@@ -62,6 +63,20 @@ class QueryRequest(BaseModel):
     trace: bool = False
     stream: bool = False
     tenant: str | None = Field(None, max_length=64)
+
+
+class ChatRequest(BaseModel):
+    """Body of ``POST /chat``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    message: str = Field(min_length=1, max_length=4000)
+    session_id: str | None = Field(None, max_length=64)
+    groups: list[str] | None = None
+    filters: dict[str, Any] | None = None
+    top_k: int | None = Field(None, ge=1, le=50)
+    tenant: str | None = Field(None, max_length=64)
+    stream: bool = False
 
 
 @dataclass
@@ -173,13 +188,13 @@ class App:
             "Vary": "Origin",
         }
 
-    def _parse(self, body: bytes) -> QueryRequest:
+    def _parse(self, body: bytes, model: type[BaseModel] = QueryRequest) -> Any:
         try:
             data = json.loads(body or b"{}")
         except ValueError:
             raise HTTPError(400, "Request body must be valid JSON") from None
         try:
-            return QueryRequest.model_validate(data)
+            return model.model_validate(data)
         except ValidationError as exc:
             problems = "; ".join(
                 f"{'.'.join(str(p) for p in e['loc']) or 'body'}: {e['msg']}" for e in exc.errors()
@@ -268,6 +283,60 @@ class App:
         )
         return Response(200, {"contexts": [context_json(c) for c in contexts]})
 
+    def _chat(
+        self, req: ChatRequest, groups: list[str] | None, tenant: str | None, owner: str
+    ) -> Response:
+        kwargs: dict[str, Any] = {
+            "session_id": req.session_id,
+            "owner": owner,
+            "groups": groups,
+            "filters": req.filters,
+            "top_k": req.top_k,
+            "tenant": tenant,
+        }
+        if not req.stream:
+            answer = self.engine.chat(req.message, **kwargs)
+            body = answer_json(answer, include_trace=False)
+            body.update(
+                session_id=answer.session_id, standalone_question=answer.standalone_question
+            )
+            return Response(200, body)
+        events = self.engine.chat_stream(req.message, **kwargs)
+        first = next(events)
+
+        def encode(event: StreamEvent) -> bytes:
+            if event.type == "contexts":
+                return sse("contexts", {"contexts": [context_json(c) for c in event.contexts]})
+            if event.type == "delta":
+                return sse("delta", {"text": event.text})
+            assert event.answer is not None
+            data = answer_json(event.answer, include_trace=False)
+            data.update(
+                session_id=event.answer.session_id,
+                standalone_question=event.answer.standalone_question,
+            )
+            return sse("answer", data)
+
+        def stream_body() -> Iterator[bytes]:
+            yield encode(first)
+            try:
+                for event in events:
+                    yield encode(event)
+            except ProviderError as exc:
+                logger.warning("Provider error while streaming: %s", exc)
+                yield sse("error", {"error": "The model provider failed; see server logs."})
+            except Exception:
+                logger.exception("Error while streaming")
+                yield sse("error", {"error": "Internal server error"})
+
+        return Response(
+            200,
+            None,
+            {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            stream=stream_body(),
+            content_type="text/event-stream",
+        )
+
     def handle(self, method: str, path: str, headers: dict[str, str], body: bytes) -> Response:
         """Dispatch one request. ``headers`` keys must be lowercase."""
         cors = self._cors(headers)
@@ -277,6 +346,9 @@ class App:
             )
         except HTTPError as exc:
             response = Response(exc.status, {"error": exc.message})
+        except ConversationError as exc:
+            status = 404 if "Unknown session" in str(exc) else 400
+            response = Response(status, {"error": str(exc)})
         except IndexNotFoundError as exc:
             response = Response(503, {"error": str(exc)})
         except ProviderError as exc:
@@ -300,9 +372,22 @@ class App:
             if method != "GET":
                 raise HTTPError(405, "Use GET")
             return self._health()
-        if path not in ("/info", "/query", "/retrieve"):
+        is_session = path.startswith("/sessions/")
+        if path not in ("/info", "/query", "/retrieve", "/chat") and not is_session:
             raise HTTPError(404, f"Not found: {path}")
         key = self._authenticate(headers)
+        owner = key.name if key is not None else "anonymous"
+        if is_session:
+            if method != "DELETE":
+                raise HTTPError(405, "Use DELETE")
+            session_id = path.removeprefix("/sessions/")
+            tenant = self._tenant(key, None)
+            deleted = self.engine.conversations.store.delete(
+                validate_session_id(session_id), owner_key(owner, tenant)
+            )
+            if not deleted:
+                raise ConversationError("Unknown session")
+            return Response(200, {"deleted": session_id})
         if path == "/info":
             if method != "GET":
                 raise HTTPError(405, "Use GET")
@@ -311,6 +396,14 @@ class App:
             raise HTTPError(405, "Use POST")
         if len(body) > self.config.max_body_bytes:
             raise HTTPError(413, f"Body exceeds {self.config.max_body_bytes} bytes")
+        if path == "/chat":
+            chat_req: ChatRequest = self._parse(body, ChatRequest)
+            return self._chat(
+                chat_req,
+                self._groups(key, chat_req.groups),
+                self._tenant(key, chat_req.tenant),
+                owner,
+            )
         req = self._parse(body)
         groups = self._groups(key, req.groups)
         tenant = self._tenant(key, req.tenant)

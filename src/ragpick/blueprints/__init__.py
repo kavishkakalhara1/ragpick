@@ -53,8 +53,9 @@ _ORDER = [
     "graph",
     "agentic",
     "multimodal",
-    "sql",
     "conversational",
+    "sql",
+    "hierarchical",
 ]
 
 

@@ -25,6 +25,7 @@ Top-level schema of ``rag.yaml``.
 | `cache` | CacheConfig | see section | Caching. |
 | `serve` | ServeConfig | see section | HTTP API settings. |
 | `tenancy` | TenancyConfig | see section | Multi-tenancy. |
+| `conversation` | ConversationConfig | see section | Chat sessions. |
 | `index_dir` | str | `'.ragpick/index'` | Where indexes are persisted. |
 
 ## `requirements`
@@ -39,6 +40,7 @@ What the application needs. Used by the selector (`ragpick recommend`).
 | `long_documents` | bool | `False` | Documents are long and structured (manuals, policies, contracts). |
 | `complex_questions` | bool | `False` | Questions need several lookups (comparisons, multi-part questions). |
 | `multi_tenant` | bool | `False` | Several customers' data must be kept in separate indexes. |
+| `conversational` | bool | `False` | Users ask follow-up questions in a chat. |
 | `multi_hop` | bool | `False` | Questions connect facts spread across several documents. |
 | `strict_grounding` | bool | `False` | Wrong answers are costly: prefer "I don't know" over guessing. |
 | `latency` | `low` \| `normal` | `'normal'` | `low` disables expensive stages. |
@@ -85,6 +87,8 @@ Evaluation settings.
 |---|---|---|---|
 | `judge` | ComponentSpec \| null | `None` | Generator used as LLM judge (must support `complete`). |
 | `prices` | dict[str, PriceSpec] | `{}` | Model name → price; merged over ragpick's built-in price table. |
+| `fail_under` | dict[str, float] | `{}` | Minimum metric values, e.g. `{hit_rate@k: 0.8}`; `ragpick eval` fails below. |
+| `fail_over` | dict[str, float] | `{}` | Maximum metric values, e.g. `{latency_p95_ms: 1500}`; eval fails above. |
 
 ## Price spec (each entry of `eval.prices`)
 
@@ -138,6 +142,18 @@ Per-tenant indexes within one pipeline.
 | `enabled` | bool | `False` | Each tenant gets an isolated index under `<index_dir>/tenants/<id>`. |
 | `max_loaded` | int | `32` | Tenant indexes kept in memory (LRU). |
 
+## `conversation`
+
+Chat sessions (`chat()`, `ragpick chat`, `POST /chat`).
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `rewrite` | `auto` \| `llm` \| `heuristic` \| `off` | `'auto'` | How follow-ups become standalone questions (`auto`: LLM if real). |
+| `max_turns` | int | `10` | Turns kept per session. |
+| `store` | `memory` \| `sqlite` | `'memory'` | `sqlite` keeps sessions in `<index_dir>/sessions.sqlite`. |
+| `max_sessions` | int | `1000` | Sessions kept by the memory store (LRU). |
+| `ttl_seconds` | float \| null | `None` | Forget idle sessions after this. |
+
 ## API key (each entry of `serve.api_keys`)
 
 An API key for `ragpick serve` and the groups its holder may act as.
@@ -161,6 +177,8 @@ A config that routes each question to one of several pipelines.
 | `eval` | EvalConfig | see section | Evaluation settings. |
 | `tracing` | TracingConfig | see section | Query tracing. |
 | `serve` | ServeConfig | see section | HTTP API settings. |
+| `conversation` | ConversationConfig | see section | Chat sessions. |
+| `sessions_dir` | str | `'.ragpick/router'` | Where `store: sqlite` sessions live. |
 
 ## `router`
 

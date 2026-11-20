@@ -299,6 +299,61 @@ def evaluate_configs(
     return reports
 
 
+def parse_thresholds(items: Sequence[str]) -> dict[str, float]:
+    """Parse CLI thresholds like ``["hit_rate@k=0.8", "mrr=0.5"]``.
+
+    Raises:
+        ConfigError: malformed items or unknown metrics.
+    """
+    out: dict[str, float] = {}
+    for item in items:
+        name, sep, raw = item.partition("=")
+        name = name.strip()
+        if not sep or name not in METRICS:
+            raise ConfigError(
+                f"Invalid threshold '{item}': use METRIC=VALUE with one of: {', '.join(METRICS)}"
+            )
+        try:
+            out[name] = float(raw)
+        except ValueError:
+            raise ConfigError(f"Invalid threshold value in '{item}'") from None
+    return out
+
+
+def check_thresholds(
+    reports: Sequence[EvalReport],
+    fail_under: dict[str, float] | None = None,
+    fail_over: dict[str, float] | None = None,
+) -> list[str]:
+    """Human-readable threshold violations (empty when everything passes).
+
+    A metric that is required but missing (e.g. faithfulness without a judge) counts
+    as a violation, so a misconfigured CI job can't pass silently.
+    """
+    failures: list[str] = []
+    for metric in [*(fail_under or {}), *(fail_over or {})]:
+        if metric not in METRICS:
+            raise ConfigError(f"Unknown metric '{metric}' in thresholds")
+    for report in reports:
+        for metric, minimum in (fail_under or {}).items():
+            value = report.metrics.get(metric)
+            if value is None:
+                failures.append(
+                    f"{report.label}: {metric} is not available (required >= {minimum:g})"
+                )
+            elif value < minimum:
+                failures.append(f"{report.label}: {metric} = {value:.3f} < {minimum:g}")
+        for metric, maximum in (fail_over or {}).items():
+            value = report.metrics.get(metric)
+            if value is None:
+                failures.append(
+                    f"{report.label}: {metric} is not available (required <= {maximum:g})"
+                )
+            elif value > maximum:
+                failures.append(f"{report.label}: {metric} = {value:.3f} > {maximum:g}")
+    return failures
+
+
 def write_reports(reports: Sequence[EvalReport], path: str | Path) -> Path:
     """Write reports as JSON (full detail) or CSV (one aggregate row per config).
 

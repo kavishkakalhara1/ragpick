@@ -69,6 +69,7 @@ class Requirements(_Strict):
     multi_tenant: bool = Field(
         False, description="Several customers' data must be kept in separate indexes."
     )
+    conversational: bool = Field(False, description="Users ask follow-up questions in a chat.")
     multi_hop: bool = Field(
         False, description="Questions connect facts spread across several documents."
     )
@@ -123,6 +124,14 @@ class EvalConfig(_Strict):
         default_factory=dict,
         description="Model name → price; merged over ragpick's built-in price table.",
     )
+    fail_under: dict[str, float] = Field(
+        default_factory=dict,
+        description="Minimum metric values, e.g. `{hit_rate@k: 0.8}`; `ragpick eval` fails below.",
+    )
+    fail_over: dict[str, float] = Field(
+        default_factory=dict,
+        description="Maximum metric values, e.g. `{latency_p95_ms: 1500}`; eval fails above.",
+    )
 
 
 class TracingConfig(_Strict):
@@ -143,6 +152,20 @@ class CacheConfig(_Strict):
     embeddings: bool = Field(True, description="Cache embeddings.")
     generations: bool = Field(True, description="Cache answers and LLM completions.")
     ttl_seconds: float | None = Field(None, gt=0, description="Expire entries after this age.")
+
+
+class ConversationConfig(_Strict):
+    """Chat sessions (`chat()`, `ragpick chat`, `POST /chat`)."""
+
+    rewrite: Literal["auto", "llm", "heuristic", "off"] = Field(
+        "auto", description="How follow-ups become standalone questions (`auto`: LLM if real)."
+    )
+    max_turns: int = Field(10, ge=1, description="Turns kept per session.")
+    store: Literal["memory", "sqlite"] = Field(
+        "memory", description="`sqlite` keeps sessions in `<index_dir>/sessions.sqlite`."
+    )
+    max_sessions: int = Field(1000, ge=1, description="Sessions kept by the memory store (LRU).")
+    ttl_seconds: float | None = Field(None, gt=0, description="Forget idle sessions after this.")
 
 
 class TenancyConfig(_Strict):
@@ -205,6 +228,9 @@ class RagConfig(_Strict):
     cache: CacheConfig = Field(default_factory=CacheConfig, description="Caching.")
     serve: ServeConfig = Field(default_factory=ServeConfig, description="HTTP API settings.")
     tenancy: TenancyConfig = Field(default_factory=TenancyConfig, description="Multi-tenancy.")
+    conversation: ConversationConfig = Field(
+        default_factory=ConversationConfig, description="Chat sessions."
+    )
     index_dir: str = Field(".ragpick/index", description="Where indexes are persisted.")
 
     _base_dir: Path = PrivateAttr(default_factory=Path.cwd)
@@ -269,6 +295,10 @@ class RouterConfig(_Strict):
     eval: EvalConfig = Field(default_factory=EvalConfig, description="Evaluation settings.")
     tracing: TracingConfig = Field(default_factory=TracingConfig, description="Query tracing.")
     serve: ServeConfig = Field(default_factory=ServeConfig, description="HTTP API settings.")
+    conversation: ConversationConfig = Field(
+        default_factory=ConversationConfig, description="Chat sessions."
+    )
+    sessions_dir: str = Field(".ragpick/router", description="Where `store: sqlite` sessions live.")
 
     _base_dir: Path = PrivateAttr(default_factory=Path.cwd)
 
