@@ -1,0 +1,49 @@
+name: Bug report
+description: Something doesn't work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **Security issues** (access control, tenant isolation, SQL sandbox,
+        API keys): please don't file them here. Use [private reporting](https://github.com/kavishkakalhara1/ragpick/security/advisories/new) instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: Commands and a minimal `rag.yaml` (remove secrets). A failing test is even better.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: Error output, ideally re-run with `ragpick --verbose ...`, or `--trace` for wrong answers.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: ragpick version
+      placeholder: "ragpick --version"
+    validations:
+      required: true
+  - type: dropdown
+    id: python
+    attributes:
+      label: Python version
+      options: ["3.11", "3.12", "3.13", other]
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Blueprint and providers
+      placeholder: "e.g. hybrid, openai embedder + generator, qdrant store"

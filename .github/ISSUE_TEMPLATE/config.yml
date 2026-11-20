@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/kavishkakalhara1/ragpick/security/advisories/new
+    about: Report security issues privately, not as public issues.
+  - name: Documentation
+    url: https://kavishkakalhara1.github.io/ragpick/
+    about: Concepts, blueprints, config reference and guides.

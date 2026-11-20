@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest a component, blueprint, integration or improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: The use case first; e.g. "our support bot can't find answers in scanned PDFs".
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: A new loader/store/retriever/blueprint, config option, CLI command, …
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - New component (loader, store, embedder, reranker, generator)
+        - New or improved blueprint
+        - Selector / recommendations
+        - Evaluation / bench
+        - Serving / HTTP API
+        - Docs
+        - Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd like to work on this (see CONTRIBUTING.md)
