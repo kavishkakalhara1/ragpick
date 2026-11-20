@@ -28,6 +28,8 @@ nav:
   - Config reference: config-reference.md
   - Writing a plugin: plugins.md
   - Evaluation: evaluation.md
+  - Routing: routing.md
+  - Serving: serving.md
   - Tracing & caching: operations.md
   - LangChain & LlamaIndex: adapters.md
   - Design decisions: decisions.md

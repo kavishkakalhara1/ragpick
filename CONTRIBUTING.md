@@ -71,7 +71,8 @@ Preview the docs with `mkdocs serve`.
   and document pipelines is a good intermediate step.
 - **SQL**: Postgres/MySQL backends for the `sql` retriever (read-only roles + the same
   validation).
-- **Trace exporters**: OpenTelemetry, Langfuse, Phoenix.
+- **Trace exporters**: Langfuse, Phoenix (OpenTelemetry is built in).
+- **Serving**: streaming answers (server-sent events), rate limiting.
 - **Embedders and generators**: Cohere, Voyage, Bedrock, Azure OpenAI (or use them today
   through the LangChain / LlamaIndex adapters).
 - **Eval**: more metrics (context recall vs `ground_truth`, citation accuracy).

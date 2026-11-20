@@ -147,6 +147,32 @@ interfaces extensible. Each decision is listed here so it can be revisited.
     it never needs a key), and the retriever explains at query time that SQL needs a real
     LLM. Blueprints declare `data: documents | structured`; `bench` compares document ones.
 
+## v0.4
+
+50. **Routing composes whole pipelines** (a router config lists route `rag.yaml` files)
+    rather than adding a "router retriever", because SQL and document pipelines differ in
+    ingest, index and data. Nested routers are rejected to keep traces and evaluation simple.
+51. **Router LLM defaults to the first route's real LLM**; `auto` silently uses keywords
+    without one, while `strategy: llm` fails loudly. Invalid LLM replies fall back to
+    keyword scoring, not an error.
+52. **Fallback goes to the `default` route only** (one retry), triggered by "I don't know",
+    no contexts, or a failed SQL query. Route errors (e.g. configuration) are raised, not
+    swallowed.
+53. **Route `groups` gate routing itself**, so a caller can never reach (or learn about by
+    being routed to) a route outside their groups.
+54. **The HTTP server has no dependencies**: one framework-independent `App.handle`,
+    exposed as an ASGI app (uvicorn if installed) and via `ThreadingHTTPServer`. Engine
+    calls run in a worker thread under ASGI.
+55. **API keys are bound to groups.** Requests may narrow but never widen their key's
+    groups; omitted groups mean the key's groups. Without keys, request groups are
+    trusted, and `serve` warns on non-loopback hosts. `/health` stays unauthenticated for
+    load balancers.
+56. **Errors don't leak internals over HTTP**: provider and configuration errors become
+    502/500 with a generic message; details go to the server log.
+57. **The OpenTelemetry exporter replays finished traces** rather than instrumenting live,
+    so ragpick's tracing stays dependency-free and every backend sees identical spans.
+    Root spans carry a wall-clock `timestamp` for absolute times.
+
 ## Tooling
 
 31. **`types-PyYAML` is not a dev dependency** (it wasn't in the approved list), so mypy

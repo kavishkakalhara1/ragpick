@@ -26,12 +26,14 @@ class ComponentConfigError(RagpickError):
 class MissingDependencyError(RagpickError):
     """An optional dependency (extra) required by a component is not installed."""
 
-    def __init__(self, package: str, extra: str, component: str) -> None:
+    def __init__(
+        self, package: str, extra: str, component: str, install: str | None = None
+    ) -> None:
         self.package = package
         self.extra = extra
+        command = install or f'pip install "ragpick[{extra}]"'
         super().__init__(
-            f"{component} requires the '{package}' package. "
-            f'Install it with: pip install "ragpick[{extra}]"'
+            f"{component} requires the '{package}' package. Install it with: {command}"
         )
 
 

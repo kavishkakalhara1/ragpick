@@ -63,9 +63,9 @@ def test_structured_data_recommends_sql() -> None:
 def test_mixed_data_and_sql_access_control_warn() -> None:
     r = rec(data_types=["markdown", "sql"], access_control=True)
     assert r.blueprint == "sql"
-    assert any("second pipeline" in w for w in r.warnings)
+    assert any("router config" in w for w in r.warnings)
     assert any("table_groups" in w for w in r.warnings)
-    assert not any("second pipeline" in w for w in rec(data_types=["sqlite"]).warnings)
+    assert not any("router config" in w for w in rec(data_types=["sqlite"]).warnings)
 
 
 def test_strict_grounding_chooses_corrective() -> None:
@@ -176,8 +176,8 @@ def test_unknown_data_types_warn() -> None:
     r = rec(data_types=["markdown", "html", "docx"])
     assert any("docx, html" in w for w in r.warnings)
     known = rec(data_types=["markdown", "txt", "csv"], keyword_heavy=True)
-    assert len(known.warnings) == 1  # only the "sql is planned" warning
-    assert "planned" in known.warnings[0]
+    assert len(known.warnings) == 1  # only the mixed-data warning
+    assert "router config" in known.warnings[0]
 
 
 def test_default_installed_check_runs() -> None:

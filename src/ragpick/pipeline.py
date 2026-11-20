@@ -166,6 +166,40 @@ class Pipeline:
             )
         return component
 
+    # ------------------------------------------------------------------ summary
+    @property
+    def name(self) -> str:
+        """Application name from the config."""
+        return self.config.name
+
+    @property
+    def blueprint(self) -> str | None:
+        """Blueprint name from the config."""
+        return self.config.blueprint
+
+    @property
+    def top_k(self) -> int:
+        """Contexts passed to the generator per query."""
+        return self.config.query.top_k
+
+    @property
+    def model_name(self) -> str:
+        """The generator's model name (used for cost estimates)."""
+        spec = self.config.components.generator
+        nested = spec.params.get("kwargs")
+        if "model" not in spec.params and isinstance(nested, dict) and "model" in nested:
+            return str(nested["model"])
+        return str(spec.params.get("model", spec.type))
+
+    @property
+    def requires_ingest(self) -> bool:
+        """Whether queries need a prior ingest (``False`` for SQL over an existing DB)."""
+        return bool(getattr(self.retriever, "requires_ingest", True))
+
+    def ready(self) -> bool:
+        """Whether the pipeline can answer queries now (index present or not needed)."""
+        return self.has_index() or not self.requires_ingest
+
     # ------------------------------------------------------------------ persistence
     @property
     def index_dir(self) -> Path:
@@ -222,7 +256,7 @@ class Pipeline:
     def _ensure_loaded(self) -> None:
         if self._loaded:
             return
-        if not self.has_index() and getattr(self.retriever, "requires_ingest", True) is False:
+        if not self.has_index() and not self.requires_ingest:
             self._loaded = True  # e.g. SQL over an existing database: nothing to load
             return
         self.load()
@@ -333,6 +367,9 @@ class Pipeline:
         With ``trace=True`` (or ``tracing.enabled`` in the config) ``answer.trace``
         holds the timed spans of every stage, and configured exporters receive it.
         """
+        if tracing.tracing_active():  # e.g. called by a router: join its trace
+            with span("pipeline", app=self.config.name, blueprint=self.config.blueprint):
+                return self._query(question, groups, filters, top_k)
         if not (self.config.tracing.enabled if trace is None else trace):
             return self._query(question, groups, filters, top_k)
         with tracing.trace(

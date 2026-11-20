@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-20
+
+### Added
+
+- Query routing: router configs (`router:` with routes pointing at other `rag.yaml`
+  files) send each question to the best pipeline using an LLM classifier, offline
+  keyword scoring, or `auto`; fall back to the default route when the chosen one can't
+  answer; restrict routes to groups. `Router`, `Route` and `load_engine` in the public
+  API; `answer.route`; routers work with `query`, `ingest`, `validate`, `eval`, `serve`.
+- `ragpick serve`: JSON HTTP API (`/health`, `/info`, `/query`, `/retrieve`) as an ASGI
+  app (uvicorn when installed) or on the standard-library server. API keys map to
+  groups, so access control is enforced at the API boundary; CORS, body limits,
+  optional traces, and error responses that don't leak provider details.
+- OpenTelemetry trace exporter (`trace_exporter` type `otel`): replays ragpick traces as
+  OpenTelemetry spans with original timings; optional OTLP/HTTP setup via `endpoint`.
+  No new dependency (install `opentelemetry-api`/`-sdk` yourself).
+- Root spans record a wall-clock `timestamp`.
+
+### Changed
+
+- Evaluation works with any engine (pipeline or router) and records each question's route.
+- `MissingDependencyError` can suggest a custom install command.
+
 ## [0.3.0] - 2026-11-20
 
 ### Added
@@ -78,7 +101,8 @@ All notable changes to this project are documented here. The format follows
   relevance, latency percentiles, tokens and estimated cost; JSON/CSV output.
 - CLI: `init`, `recommend`, `blueprints`, `ingest`, `query`, `eval`, `validate`.
 
-[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kavishkakalhara1/ragpick/releases/tag/v0.1.0

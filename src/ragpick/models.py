@@ -59,13 +59,15 @@ class Answer(BaseModel):
     """The result of a RAG query.
 
     ``citations`` holds the IDs of the chunks the model cited, in citation order.
-    ``trace`` is set when tracing is enabled (see :mod:`ragpick.tracing`).
+    ``trace`` is set when tracing is enabled (see :mod:`ragpick.tracing`); ``route``
+    names the route that answered when a :class:`~ragpick.router.Router` is used.
     """
 
     text: str
     citations: list[str] = Field(default_factory=list)
     contexts: list[RetrievedChunk] = Field(default_factory=list)
     usage: Usage = Field(default_factory=Usage)
+    route: str | None = None
     trace: Span | None = None
 
 

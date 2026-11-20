@@ -36,6 +36,8 @@ class Span(BaseModel):
     """One timed operation; ``children`` are the operations it contained."""
 
     name: str
+    timestamp: float | None = None
+    """Wall-clock start (Unix seconds); set on root spans."""
     start_ms: float = 0.0
     duration_ms: float = 0.0
     attributes: dict[str, Any] = Field(default_factory=dict)
@@ -114,7 +116,11 @@ def set_attributes(**attributes: Any) -> None:
 def trace(name: str, **attributes: Any) -> Iterator[Span]:
     """Start a new root span and make it the current trace."""
     now = time.perf_counter()
-    root = Span(name=name, attributes={k: _jsonable(v) for k, v in attributes.items()})
+    root = Span(
+        name=name,
+        timestamp=time.time(),
+        attributes={k: _jsonable(v) for k, v in attributes.items()},
+    )
     stack_token = _stack.set((root,))
     origin_token = _origin.set(now)
     try:
@@ -148,7 +154,8 @@ class JsonlExporter:
     def export(self, root: Span) -> None:
         """Append ``root`` to the file."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        record = {"timestamp": time.time(), **root.model_dump()}
+        record = root.model_dump()
+        record["timestamp"] = root.timestamp or time.time()
         with self.path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(record, default=str) + "\n")
 

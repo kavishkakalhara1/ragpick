@@ -17,6 +17,8 @@ from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
 
 from ragpick.config import (
+    ApiKeySpec,
+    CacheConfig,
     ComponentsConfig,
     ComponentSpec,
     EvalConfig,
@@ -24,6 +26,11 @@ from ragpick.config import (
     QueryConfig,
     RagConfig,
     Requirements,
+    RouterConfig,
+    RouterSpec,
+    RouteSpec,
+    ServeConfig,
+    TracingConfig,
 )
 
 OUT = Path(__file__).resolve().parent.parent / "docs" / "config-reference.md"
@@ -35,6 +42,13 @@ SECTIONS: list[tuple[str, type[BaseModel]]] = [
     ("`query`", QueryConfig),
     ("`eval`", EvalConfig),
     ("Price spec (each entry of `eval.prices`)", PriceSpec),
+    ("`tracing`", TracingConfig),
+    ("`cache`", CacheConfig),
+    ("`serve`", ServeConfig),
+    ("API key (each entry of `serve.api_keys`)", ApiKeySpec),
+    ("Router config (top level of a router file)", RouterConfig),
+    ("`router`", RouterSpec),
+    ("Route (each entry of `router.routes`)", RouteSpec),
 ]
 
 

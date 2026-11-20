@@ -23,6 +23,7 @@ Top-level schema of ``rag.yaml``.
 | `eval` | EvalConfig | see section | Evaluation settings. |
 | `tracing` | TracingConfig | see section | Query tracing. |
 | `cache` | CacheConfig | see section | Caching. |
+| `serve` | ServeConfig | see section | HTTP API settings. |
 | `index_dir` | str | `'.ragpick/index'` | Where indexes are persisted. |
 
 ## `requirements`
@@ -89,3 +90,84 @@ Price of a model in USD per one million tokens.
 |---|---|---|---|
 | `prompt_per_1m` | float | `0.0` |  |
 | `completion_per_1m` | float | `0.0` |  |
+
+## `tracing`
+
+Query tracing (nested, timed spans per stage).
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | `False` | Record a trace for every query. |
+| `exporters` | list[ComponentSpec] | `[]` | Where traces go: `jsonl` (params: path) and/or `console`. |
+
+## `cache`
+
+Persistent cache for embeddings and LLM calls.
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | `False` | Turn caching on. |
+| `dir` | str | `'.ragpick/cache'` | Cache directory. |
+| `embeddings` | bool | `True` | Cache embeddings. |
+| `generations` | bool | `True` | Cache answers and LLM completions. |
+| `ttl_seconds` | float \| null | `None` | Expire entries after this age. |
+
+## `serve`
+
+HTTP API settings for `ragpick serve`.
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `host` | str | `'127.0.0.1'` | Interface to bind. |
+| `port` | int | `8000` | Port to bind. |
+| `api_keys` | list[ApiKeySpec] | `[]` | If set, requests need `Authorization: Bearer <key>`. |
+| `max_body_bytes` | int | `65536` | Largest accepted request body. |
+| `cors_origins` | list[str] | `[]` | Origins allowed by CORS (`*` for any). |
+| `allow_traces` | bool | `False` | Let clients request traces in responses. |
+
+## API key (each entry of `serve.api_keys`)
+
+An API key for `ragpick serve` and the groups its holder may act as.
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `key` | str | **required** | The secret; use `${ENV_VAR}` interpolation. |
+| `name` | str | `'client'` | Label used in logs. |
+| `groups` | list[str] \| null | `None` | Groups this key may query as (`null` = any groups the request names). |
+
+## Router config (top level of a router file)
+
+A config that routes each question to one of several pipelines.
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `version` | `1` | `1` | Config schema version. |
+| `name` | str | `'ragpick-router'` | Application name. |
+| `router` | RouterSpec | **required** |  |
+| `eval` | EvalConfig | see section | Evaluation settings. |
+| `tracing` | TracingConfig | see section | Query tracing. |
+| `serve` | ServeConfig | see section | HTTP API settings. |
+
+## `router`
+
+How questions are routed.
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `strategy` | `auto` \| `llm` \| `keywords` | `'auto'` | `auto` uses the LLM when one is available, else keywords. |
+| `routes` | list[RouteSpec] | **required** | Possible destinations. |
+| `default` | str \| null | `None` | Fallback route (default: the first). |
+| `fallback` | bool | `True` | Retry on the default route when the chosen one can't answer. |
+| `llm` | ComponentSpec \| null | `None` | Generator used to classify questions (default: a route's LLM). |
+
+## Route (each entry of `router.routes`)
+
+One destination of a router: another pipeline config.
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `name` | str | **required** | Route name. |
+| `config` | str | **required** | Path to the route's rag.yaml (relative to this file). |
+| `description` | str | `''` | What this route answers (shown to the LLM router). |
+| `keywords` | list[str] | `[]` | Words/phrases that point to this route. |
+| `groups` | list[str] \| null | `None` | Only callers in these groups may be routed here. |

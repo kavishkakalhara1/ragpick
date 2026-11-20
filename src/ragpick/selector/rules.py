@@ -202,8 +202,8 @@ RULES: list[Rule] = [
             bool(c.data_types & STRUCTURED_TYPES) and bool(c.data_types & DOCUMENT_TYPES)
         ),
         warning=(
-            "The sql blueprint answers from tables only. Run a second pipeline (e.g. "
-            "hybrid) for your documents; automatic routing between them is planned."
+            "The sql blueprint answers from tables only. Use a router config with a sql "
+            "route and a document route (e.g. hybrid); see docs/routing.md."
         ),
     ),
     Rule(

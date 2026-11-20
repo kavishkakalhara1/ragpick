@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError, model_validator
 
 from ragpick.errors import ConfigError
 
@@ -135,6 +135,33 @@ class CacheConfig(_Strict):
     ttl_seconds: float | None = Field(None, gt=0, description="Expire entries after this age.")
 
 
+class ApiKeySpec(_Strict):
+    """An API key for `ragpick serve` and the groups its holder may act as."""
+
+    key: str = Field(min_length=16, description="The secret; use `${ENV_VAR}` interpolation.")
+    name: str = Field("client", description="Label used in logs.")
+    groups: list[str] | None = Field(
+        None,
+        description="Groups this key may query as (`null` = any groups the request names).",
+    )
+
+
+class ServeConfig(_Strict):
+    """HTTP API settings for `ragpick serve`."""
+
+    host: str = Field("127.0.0.1", description="Interface to bind.")
+    port: int = Field(8000, ge=1, le=65535, description="Port to bind.")
+    api_keys: list[ApiKeySpec] = Field(
+        default_factory=list,
+        description="If set, requests need `Authorization: Bearer <key>`.",
+    )
+    max_body_bytes: int = Field(65536, ge=1024, description="Largest accepted request body.")
+    cors_origins: list[str] = Field(
+        default_factory=list, description="Origins allowed by CORS (`*` for any)."
+    )
+    allow_traces: bool = Field(False, description="Let clients request traces in responses.")
+
+
 class RagConfig(_Strict):
     """Top-level schema of ``rag.yaml``."""
 
@@ -154,6 +181,7 @@ class RagConfig(_Strict):
     eval: EvalConfig = Field(default_factory=EvalConfig, description="Evaluation settings.")
     tracing: TracingConfig = Field(default_factory=TracingConfig, description="Query tracing.")
     cache: CacheConfig = Field(default_factory=CacheConfig, description="Caching.")
+    serve: ServeConfig = Field(default_factory=ServeConfig, description="HTTP API settings.")
     index_dir: str = Field(".ragpick/index", description="Where indexes are persisted.")
 
     _base_dir: Path = PrivateAttr(default_factory=Path.cwd)
@@ -177,6 +205,73 @@ class RagConfig(_Strict):
     def index_path(self) -> Path:
         """Absolute index directory."""
         return self.resolve_path(self.index_dir)
+
+
+class RouteSpec(_Strict):
+    """One destination of a router: another pipeline config."""
+
+    name: str = Field(pattern=r"^[A-Za-z0-9_-]+$", description="Route name.")
+    config: str = Field(description="Path to the route's rag.yaml (relative to this file).")
+    description: str = Field("", description="What this route answers (shown to the LLM router).")
+    keywords: list[str] = Field(
+        default_factory=list, description="Words/phrases that point to this route."
+    )
+    groups: list[str] | None = Field(
+        None, description="Only callers in these groups may be routed here."
+    )
+
+
+class RouterSpec(_Strict):
+    """How questions are routed."""
+
+    strategy: Literal["auto", "llm", "keywords"] = Field(
+        "auto", description="`auto` uses the LLM when one is available, else keywords."
+    )
+    routes: list[RouteSpec] = Field(min_length=1, description="Possible destinations.")
+    default: str | None = Field(None, description="Fallback route (default: the first).")
+    fallback: bool = Field(
+        True, description="Retry on the default route when the chosen one can't answer."
+    )
+    llm: ComponentSpec | None = Field(
+        None, description="Generator used to classify questions (default: a route's LLM)."
+    )
+
+
+class RouterConfig(_Strict):
+    """A config that routes each question to one of several pipelines."""
+
+    version: Literal[1] = Field(1, description="Config schema version.")
+    name: str = Field("ragpick-router", description="Application name.")
+    router: RouterSpec
+    eval: EvalConfig = Field(default_factory=EvalConfig, description="Evaluation settings.")
+    tracing: TracingConfig = Field(default_factory=TracingConfig, description="Query tracing.")
+    serve: ServeConfig = Field(default_factory=ServeConfig, description="HTTP API settings.")
+
+    _base_dir: Path = PrivateAttr(default_factory=Path.cwd)
+
+    @model_validator(mode="after")
+    def _check_routes(self) -> RouterConfig:
+        names = [r.name for r in self.router.routes]
+        if len(set(names)) != len(names):
+            raise ValueError("route names must be unique")
+        if self.router.default is not None and self.router.default not in names:
+            raise ValueError(f"default route '{self.router.default}' is not one of {names}")
+        return self
+
+    @property
+    def base_dir(self) -> Path:
+        """Directory that route config paths resolve against."""
+        return self._base_dir
+
+    def with_base_dir(self, base_dir: Path) -> RouterConfig:
+        """Set the base directory and return ``self``."""
+        self._base_dir = base_dir
+        return self
+
+    def resolve_path(self, path: str) -> Path:
+        """Resolve ``path`` relative to :attr:`base_dir`."""
+        p = Path(path).expanduser()
+        return p if p.is_absolute() else (self._base_dir / p)
 
 
 # ---------------------------------------------------------------------------
@@ -353,3 +448,22 @@ def load_requirements(path: str | Path) -> Requirements:
     except ValidationError as exc:
         message = format_validation_error(exc, str(path))
         raise ConfigError(message.replace("  - ", "  - requirements.")) from None
+
+
+def is_router_config(raw: Mapping[str, Any]) -> bool:
+    """Whether a raw config mapping is a router config (has a ``router`` key)."""
+    return isinstance(raw, Mapping) and "router" in raw
+
+
+def load_router_config(
+    path: str | Path, overrides: Mapping[str, Any] | None = None
+) -> RouterConfig:
+    """Load and validate a router config file."""
+    p = Path(path)
+    raw = deep_merge(read_yaml(p), overrides or {})
+    raw = interpolate_env(raw)
+    try:
+        config = RouterConfig.model_validate(raw)
+    except ValidationError as exc:
+        raise ConfigError(format_validation_error(exc, str(p))) from None
+    return config.with_base_dir(p.resolve().parent)

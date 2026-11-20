@@ -22,7 +22,15 @@ from rich.tree import Tree
 
 from ragpick import __version__
 from ragpick.blueprints import blueprint_defaults, list_blueprints
-from ragpick.config import Requirements, load_config, load_requirements, parse_overrides, read_yaml
+from ragpick.config import (
+    Requirements,
+    is_router_config,
+    load_config,
+    load_requirements,
+    load_router_config,
+    parse_overrides,
+    read_yaml,
+)
 from ragpick.errors import RagpickError
 from ragpick.eval.runner import (
     METRICS,
@@ -31,7 +39,7 @@ from ragpick.eval.runner import (
     parse_judge_option,
     write_reports,
 )
-from ragpick.pipeline import Pipeline
+from ragpick.router import Router, load_engine
 from ragpick.selector import Recommendation, recommend
 from ragpick.tracing import Span
 
@@ -322,8 +330,18 @@ def ingest(
     config: ConfigOpt = DEFAULT_CONFIG,
     set_: SetOpt = None,
 ) -> None:
-    """Load, chunk, embed, index and persist documents."""
-    pipeline = Pipeline.from_yaml(config, _overrides(set_))
+    """Load, chunk, embed, index and persist documents (every route, for a router)."""
+    engine = load_engine(config, _overrides(set_))
+    if isinstance(engine, Router):
+        if path is not None:
+            raise RagpickError("A router ingests each route's own `data`; run without PATH")
+        for route_name, route_stats in engine.ingest().items():
+            console.print(
+                f"[green]✓[/] {route_name}: {route_stats.documents} documents → "
+                f"{route_stats.chunks} chunks (index: {route_stats.index_dir})"
+            )
+        return
+    pipeline = engine
     with Progress(
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
@@ -366,12 +384,13 @@ def query(
     trace: Annotated[bool, typer.Option("--trace", help="Show timings of every stage.")] = False,
     set_: SetOpt = None,
 ) -> None:
-    """Answer a question from the index."""
-    pipeline = Pipeline.from_yaml(config, _overrides(set_))
-    answer = pipeline.query(
+    """Answer a question from the index (or the routes of a router config)."""
+    engine = load_engine(config, _overrides(set_))
+    answer = engine.query(
         question, groups=_split_groups(groups), top_k=top_k, trace=True if trace else None
     )
-    console.print(Panel(Text(answer.text), title="Answer", expand=False))
+    title = f"Answer · route: {answer.route}" if answer.route else "Answer"
+    console.print(Panel(Text(answer.text), title=title, expand=False))
     if answer.citations:
         console.print("[bold]Citations:[/] " + ", ".join(answer.citations), highlight=False)
     if show_contexts:
@@ -606,11 +625,73 @@ def _mask_secrets(value: Any, key: str = "") -> Any:
 @app.command(name="validate")
 @friendly
 def validate_cmd(config: ConfigOpt = DEFAULT_CONFIG, set_: SetOpt = None) -> None:
-    """Validate a config and print the fully merged result."""
-    cfg = load_config(config, _overrides(set_))
-    console.print(f"[green]✓[/] {config} is valid")
-    merged = _mask_secrets(cfg.model_dump(mode="json"))
+    """Validate a config (pipeline or router) and print the fully merged result."""
+    if is_router_config(read_yaml(config)):
+        router_cfg = load_router_config(config, _overrides(set_))
+        for route in router_cfg.router.routes:  # each route must be valid too
+            load_config(router_cfg.resolve_path(route.config))
+        console.print(
+            f"[green]✓[/] {config} is a valid router ({len(router_cfg.router.routes)} routes)"
+        )
+        merged = _mask_secrets(router_cfg.model_dump(mode="json"))
+    else:
+        cfg = load_config(config, _overrides(set_))
+        console.print(f"[green]✓[/] {config} is valid")
+        merged = _mask_secrets(cfg.model_dump(mode="json"))
     console.print(yaml.safe_dump(merged, sort_keys=False), highlight=False, markup=False)
+
+
+# --------------------------------------------------------------------------- serve
+@app.command()
+@friendly
+def serve(
+    config: ConfigOpt = DEFAULT_CONFIG,
+    host: Annotated[str | None, typer.Option(help="Interface (default: serve.host).")] = None,
+    port: Annotated[int | None, typer.Option(help="Port (default: serve.port).")] = None,
+    server: Annotated[
+        str, typer.Option(help="auto (uvicorn if installed), uvicorn, or stdlib.")
+    ] = "auto",
+    set_: SetOpt = None,
+) -> None:
+    """Serve the pipeline (or router) as a JSON HTTP API."""
+    import importlib.util
+
+    from ragpick.server import App, asgi_app, is_loopback, make_server
+
+    if server not in ("auto", "uvicorn", "stdlib"):
+        raise RagpickError(f"--server must be auto, uvicorn or stdlib, got {server!r}")
+    engine = load_engine(config, _overrides(set_))
+    application = App(engine)
+    bind_host = host or application.config.host
+    bind_port = port or application.config.port
+    if not engine.ready():
+        console.print("[yellow]![/] Nothing ingested yet: /query will return 503 until you ingest.")
+    if not application.config.api_keys and not is_loopback(bind_host):
+        console.print(
+            "[bold yellow]Warning:[/] no serve.api_keys configured and the server is reachable "
+            f"on {bind_host}. Anyone who can connect may query as any group."
+        )
+    use_uvicorn = server == "uvicorn" or (
+        server == "auto" and importlib.util.find_spec("uvicorn") is not None
+    )
+    url = f"http://{bind_host}:{bind_port}"
+    console.print(f"[green]✓[/] Serving [cyan]{escape(engine.name)}[/] on {url}  (POST /query)")
+    if use_uvicorn:
+        from ragpick.components._optional import require
+
+        uvicorn = require(
+            "uvicorn", "serve", "ragpick serve --server uvicorn", "pip install uvicorn"
+        )
+        uvicorn.run(asgi_app(application), host=bind_host, port=bind_port, log_level="info")
+        return
+    console.print("[dim]Using the standard-library server (pip install uvicorn for production).[/]")
+    httpd = make_server(application, bind_host, bind_port)
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:  # pragma: no cover - interactive
+        pass
+    finally:
+        httpd.server_close()
 
 
 # --------------------------------------------------------------------------- cache

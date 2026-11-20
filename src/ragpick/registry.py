@@ -99,6 +99,7 @@ class Registry:
             importlib.import_module("ragpick.components")
             importlib.import_module("ragpick.adapters")
             importlib.import_module("ragpick.tracing")
+            importlib.import_module("ragpick.otel")
         if not self._plugins_loaded:
             self.load_plugins()
 

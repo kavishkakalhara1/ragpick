@@ -48,7 +48,28 @@ def retrieve(self, query, k, filters=None):
         return results
 ```
 
-**Custom exporters** (e.g. OpenTelemetry, Langfuse) are plugins of kind
+**OpenTelemetry.** The `otel` exporter replays each trace as OpenTelemetry spans
+(`ragpick.query`, `ragpick.retrieve`, …) with the original timings, parent/child links,
+`ragpick.*` attributes and error status:
+
+```yaml
+tracing:
+  enabled: true
+  exporters:
+    - type: otel
+      params:
+        service_name: support-bot
+        endpoint: http://localhost:4318/v1/traces   # optional, see below
+```
+
+Install OpenTelemetry yourself; it isn't a ragpick dependency. With only
+`opentelemetry-api` installed, spans go to whatever SDK your application already
+configures. With `endpoint` set (needs `opentelemetry-sdk` and
+`opentelemetry-exporter-otlp-proto-http`), ragpick configures an OTLP/HTTP exporter
+itself. That's handy for `ragpick serve` and the CLI with Jaeger, Grafana Tempo,
+Honeycomb, etc.
+
+**Other custom exporters** (e.g. Langfuse) are plugins of kind
 `trace_exporter`: a class with `export(root: Span)`, registered with
 `@register("trace_exporter", "otel")` or the `ragpick.components` entry point
 `"trace_exporter.otel"`. A failing exporter is logged and never breaks a query.

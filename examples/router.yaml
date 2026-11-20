@@ -1,0 +1,21 @@
+# Routes questions between the documents (hybrid) and the order tables (sql).
+# The sql route needs a real LLM: pip install "ragpick[openai]" && export OPENAI_API_KEY=...
+#   ragpick ingest -c examples/router.yaml
+#   ragpick query "How many orders were shipped to Canada?" -c examples/router.yaml --groups staff --trace
+#   ragpick query "What does error E-1042 mean?" -c examples/router.yaml
+version: 1
+name: lumen-assistant
+router:
+  strategy: auto
+  default: docs
+  routes:
+    - name: docs
+      config: hybrid.yaml
+      description: Product manuals, troubleshooting, error codes, warranty, billing and privacy policies
+    - name: analytics
+      config: sql.yaml
+      description: Orders, sales, products, prices, quantities, countries, counts and totals
+      keywords: [how many, total, revenue, average, top, orders, sold, units]
+      groups: [staff, hr]
+serve:
+  port: 8000

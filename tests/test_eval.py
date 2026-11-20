@@ -193,7 +193,12 @@ def test_evaluate_matches_manual_computation(tmp_path: Path) -> None:
     from ragpick.eval.dataset import EvalExample
 
     class StubPipeline:
-        config = Pipeline.from_dict({"blueprint": "naive", "query": {"top_k": 2}}).config
+        """Anything with query() and the engine summary properties can be evaluated."""
+
+        name = "stub"
+        blueprint = "naive"
+        top_k = 2
+        model_name = "fake"
 
         def query(self, question: str, groups: Any = None) -> Answer:
             docs = {"q1": ["a", "b"], "q2": ["x", "b"]}[question]

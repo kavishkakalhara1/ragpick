@@ -195,7 +195,7 @@ def test_unexpected_error_is_summarised(workdir: Path, monkeypatch: pytest.Monke
     def boom(*args: object, **kwargs: object) -> None:
         raise RuntimeError("kaboom")
 
-    monkeypatch.setattr("ragpick.cli.Pipeline.from_yaml", boom)
+    monkeypatch.setattr("ragpick.cli.load_engine", boom)
     code, out = run("query", "x")
     assert code == 1
     assert "Unexpected error: RuntimeError: kaboom" in out

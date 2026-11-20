@@ -65,7 +65,7 @@ merged result with `ragpick validate`.
 | long, structured documents | `parent_child` |
 | small corpus, not keyword-heavy | `naive` |
 | keyword-heavy, or medium/large corpus | `hybrid` |
-| structured data (csv, sql, sqlite, …) | `sql` (warns about mixed data and row-level ACL) |
+| structured data (csv, sql, sqlite, …) | `sql` (warns about row-level ACL; mixed data → use a [router](routing.md)) |
 | `strict_grounding` (wrong answers are costly) | `corrective` (over `parent_child` for long documents) |
 | `latency: low` | reranker disabled, with a reason |
 | `access_control` with a store that cannot filter | warning |

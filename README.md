@@ -140,6 +140,7 @@ allowed_groups: [support]
 | `ragpick bench DATASET --data DOCS` | try every stable blueprint, pick the winner (`--write rag.yaml`) |
 | `ragpick validate` | print the merged config (secrets masked) |
 | `ragpick cache stats` / `clear` | inspect or clear the embedding/LLM cache |
+| `ragpick serve` | JSON HTTP API with API keys mapped to groups |
 
 ## Optional extras
 
@@ -153,6 +154,31 @@ allowed_groups: [support]
 | `all` | everything above |
 
 The Ollama generator needs no extra.
+
+## Routing and serving
+
+Answer from documents *and* databases: a router sends each question to the right
+pipeline, and `ragpick serve` puts it behind an HTTP API where **API keys decide which
+groups a caller may act as**:
+
+```yaml
+# router.yaml
+router:
+  routes:
+    - {name: docs, config: hybrid.yaml, description: Manuals, troubleshooting, policies}
+    - {name: analytics, config: sql.yaml, description: Orders, sales and prices,
+       keywords: [how many, total, revenue], groups: [staff]}
+serve:
+  api_keys: [{key: "${PORTAL_KEY}", name: support-portal, groups: [support]}]
+```
+
+```bash
+ragpick serve -c router.yaml
+curl -s localhost:8000/query -H "Authorization: Bearer $PORTAL_KEY" \
+  -d '{"question": "What does error E-1042 mean?"}'
+```
+
+See [docs/routing.md](docs/routing.md) and [docs/serving.md](docs/serving.md).
 
 ## Tracing and caching
 
@@ -176,7 +202,7 @@ tracing: {enabled: true, exporters: [{type: jsonl, params: {path: .ragpick/trace
 cache: {enabled: true}     # embeddings, answers and LLM calls, keyed by model fingerprint
 ```
 
-See [docs/operations.md](docs/operations.md).
+Traces can also go to OpenTelemetry (`{type: otel}` exporter). See [docs/operations.md](docs/operations.md).
 
 ## LangChain and LlamaIndex
 
@@ -199,7 +225,8 @@ See [docs/adapters.md](docs/adapters.md).
 
 [Concepts](docs/concepts.md) · [Blueprints](docs/blueprints.md) ·
 [Config reference](docs/config-reference.md) · [Writing a plugin](docs/plugins.md) ·
-[Evaluation](docs/evaluation.md) · [Tracing & caching](docs/operations.md) ·
+[Evaluation](docs/evaluation.md) · [Routing](docs/routing.md) · [Serving](docs/serving.md) ·
+[Tracing & caching](docs/operations.md) ·
 [LangChain & LlamaIndex](docs/adapters.md) ·
 [Design decisions](docs/decisions.md)
 
@@ -207,9 +234,11 @@ See [docs/adapters.md](docs/adapters.md).
 
 - **v0.2** ✅: `parent_child` blueprint, `ragpick bench`, LangChain and LlamaIndex adapters
 - **v0.3** ✅: `sql` and `corrective` blueprints, tracing, caching
-- **v0.4**: query routing between `sql` and document pipelines, `ragpick serve` HTTP API,
+- **v0.4** ✅: query routing between `sql` and document pipelines, `ragpick serve` HTTP API,
   OpenTelemetry trace exporter
-- **Later**: `graph` and `agentic` blueprints, multi-tenancy, TypeScript SDK
+- **v0.5**: `graph` blueprint (GraphRAG), streaming answers (`/query` server-sent events),
+  Postgres backend for `sql`
+- **Later**: `agentic` blueprint, multi-tenancy, TypeScript SDK
 
 ## Contributing
 

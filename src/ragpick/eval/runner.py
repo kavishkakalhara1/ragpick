@@ -13,7 +13,14 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from ragpick.config import ComponentSpec, RagConfig, load_config
+from ragpick.config import (
+    ComponentSpec,
+    RagConfig,
+    is_router_config,
+    load_config,
+    load_router_config,
+    read_yaml,
+)
 from ragpick.errors import ConfigError, RagpickError
 from ragpick.eval.dataset import EvalExample, load_dataset
 from ragpick.eval.metrics import (
@@ -29,6 +36,7 @@ from ragpick.interfaces import TextCompleter
 from ragpick.models import Usage
 from ragpick.pipeline import Pipeline
 from ragpick.registry import registry
+from ragpick.router import Router
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +60,7 @@ class ExampleResult(BaseModel):
 
     question: str
     answer: str = ""
+    route: str | None = None
     citations: list[str] = Field(default_factory=list)
     retrieved_doc_ids: list[str] = Field(default_factory=list)
     relevant_doc_ids: list[str] | None = None
@@ -103,16 +112,15 @@ def parse_judge_option(value: str | None) -> ComponentSpec | None:
     return ComponentSpec(type=type_, params={"model": model} if model else {})
 
 
-def _model_name(config: RagConfig) -> str:
-    spec = config.components.generator
-    nested = spec.params.get("kwargs")
-    if "model" not in spec.params and isinstance(nested, dict) and "model" in nested:
-        return str(nested["model"])  # adapters: params.kwargs.model
-    return str(spec.params.get("model", spec.type))
+def _engine_prices(engine: Any) -> dict[str, Any]:
+    if isinstance(engine, Pipeline):
+        return dict(engine.config.eval.prices)
+    eval_config = getattr(engine, "eval_config", None)
+    return dict(eval_config.prices) if eval_config is not None else {}
 
 
 def evaluate(
-    pipeline: Pipeline,
+    pipeline: Any,
     dataset: Sequence[EvalExample],
     *,
     judge: LLMJudge | None = None,
@@ -120,14 +128,13 @@ def evaluate(
     config_path: str | None = None,
     progress: Callable[[int, int], None] | None = None,
 ) -> EvalReport:
-    """Evaluate ``pipeline`` on ``dataset``.
+    """Evaluate ``pipeline`` (a :class:`Pipeline` or :class:`~ragpick.router.Router`).
 
     Retrieval metrics are computed for examples with ``relevant_doc_ids``; LLM
     metrics only when a ``judge`` is given. Errors raised by ragpick components are
     recorded per example and counted in the ``errors`` metric.
     """
-    config = pipeline.config
-    k = config.query.top_k
+    k = pipeline.top_k
     results: list[ExampleResult] = []
     usages: list[Usage] = []
     for i, example in enumerate(dataset):
@@ -145,6 +152,7 @@ def evaluate(
         else:
             result.latency_ms = (time.perf_counter() - start) * 1000
             result.answer = answer.text
+            result.route = answer.route
             result.citations = answer.citations
             result.retrieved_doc_ids = [c.chunk.doc_id for c in answer.contexts]
             result.prompt_tokens = answer.usage.prompt_tokens
@@ -170,7 +178,7 @@ def evaluate(
             progress(i + 1, len(dataset))
 
     latencies = [r.latency_ms for r in results if r.error is None]
-    model = _model_name(config)
+    model = pipeline.model_name
     metrics: dict[str, float | None] = {
         "hit_rate@k": mean([r.hit for r in results]),
         "mrr": mean([r.reciprocal_rank for r in results]),
@@ -180,12 +188,12 @@ def evaluate(
         "latency_p50_ms": percentile(latencies, 50),
         "latency_p95_ms": percentile(latencies, 95),
         "total_tokens": float(sum(u.total_tokens for u in usages)),
-        "est_cost_usd": estimate_cost(usages, model, config.eval.prices),
+        "est_cost_usd": estimate_cost(usages, model, _engine_prices(pipeline)),
         "errors": float(sum(1 for r in results if r.error)),
     }
     return EvalReport(
-        label=label or config.name,
-        blueprint=config.blueprint,
+        label=label or pipeline.name,
+        blueprint=pipeline.blueprint,
         config_path=config_path,
         k=k,
         model=model,
@@ -221,6 +229,33 @@ def evaluate_configs(
             overrides: dict[str, Any] = {}
             if data is not None:
                 overrides["index_dir"] = str(Path(tmp) / f"index-{n}")
+            if not isinstance(path, RagConfig) and is_router_config(read_yaml(path)):
+                if data is not None:
+                    raise ConfigError(
+                        f"{path} is a router: it ingests each route's own `data`; omit --data"
+                    )
+                router = Router.from_config(load_router_config(path))
+                if not router.ready():
+                    router.ingest()
+                label = router.name if router.name not in labels else f"{router.name} #{n + 1}"
+                labels.add(label)
+                router_judge = build_judge(judge or router.eval_config.judge)
+
+                def router_progress(done: int, total: int, label: str = label) -> None:
+                    if progress:
+                        progress(label, done, total)
+
+                reports.append(
+                    evaluate(
+                        router,
+                        dataset,
+                        judge=router_judge,
+                        label=label,
+                        config_path=str(path),
+                        progress=router_progress,
+                    )
+                )
+                continue
             if isinstance(path, RagConfig):
                 config = path.model_copy(deep=True).with_base_dir(path.base_dir)
                 if data is not None:
@@ -232,7 +267,7 @@ def evaluate_configs(
             pipeline = Pipeline(config)
             if data is not None:
                 pipeline.ingest(data)
-            elif not pipeline.has_index():
+            elif not pipeline.ready():
                 if config.data is None:
                     raise ConfigError(
                         f"{source}: no index at {pipeline.index_dir} and no `data` path in the "
