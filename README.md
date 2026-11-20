@@ -3,8 +3,8 @@
 **Pick the right RAG architecture for your system, define it as code, and prove it works on your data.**
 
 [![CI](https://github.com/kavishkakalhara1/ragpick/actions/workflows/ci.yml/badge.svg)](https://github.com/kavishkakalhara1/ragpick/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/ragpick.svg)](https://pypi.org/project/ragpick/)
-[![Python](https://img.shields.io/pypi/pyversions/ragpick.svg)](https://pypi.org/project/ragpick/)
+[![PyPI](https://img.shields.io/pypi/v/ragpick?cacheSeconds=3600)](https://pypi.org/project/ragpick/)
+[![Python](https://img.shields.io/pypi/pyversions/ragpick?cacheSeconds=3600)](https://pypi.org/project/ragpick/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 **ragpick 1.0 is stable:** configs, the Python API, the CLI and the HTTP API only change
