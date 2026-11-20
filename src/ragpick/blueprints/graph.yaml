@@ -1,0 +1,11 @@
+metadata:
+  name: graph
+  description: >-
+    GraphRAG: extract entities and relations into a knowledge graph and answer
+    multi-hop and global questions from graph neighbourhoods and summaries.
+  best_for:
+    - multi-hop questions across many documents
+    - global questions such as "what are the main themes?"
+  tradeoffs:
+    - expensive indexing (LLM extraction over the whole corpus)
+  status: planned

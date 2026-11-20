@@ -1,0 +1,10 @@
+metadata:
+  name: agentic
+  description: >-
+    An agent plans, chooses among retrieval tools, and iterates until it can
+    answer.
+  best_for:
+    - complex questions that need several lookups or tools
+  tradeoffs:
+    - unpredictable latency and cost; harder to evaluate
+  status: planned

@@ -1,0 +1,13 @@
+# Offline example: naive blueprint with fake components (no API key needed).
+# Relative paths resolve against this file's directory.
+version: 1
+name: naive
+blueprint: naive
+data: data
+index_dir: .ragpick/naive
+requirements:
+  data_types: [markdown]
+  corpus_size: small
+  keyword_heavy: false
+query:
+  top_k: 3

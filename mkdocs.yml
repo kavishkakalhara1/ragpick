@@ -1,0 +1,38 @@
+site_name: ragpick
+site_author: Kavishka Kalhara
+site_url: https://kavishkakalhara1.github.io/ragpick/
+copyright: Copyright &copy; 2026 Kavishka Kalhara
+site_description: Choose, build, evaluate, and run the right RAG architecture.
+repo_url: https://github.com/kavishkakalhara1/ragpick
+repo_name: kavishkakalhara1/ragpick
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.sections
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle: {icon: material/weather-night, name: Dark mode}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle: {icon: material/weather-sunny, name: Light mode}
+
+nav:
+  - Home: index.md
+  - Concepts: concepts.md
+  - Blueprints: blueprints.md
+  - Config reference: config-reference.md
+  - Writing a plugin: plugins.md
+  - Evaluation: evaluation.md
+  - Design decisions: decisions.md
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc: {permalink: true}
+  - pymdownx.highlight
+  - pymdownx.superfences

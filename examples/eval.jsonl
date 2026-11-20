@@ -1,0 +1,14 @@
+{"question": "How do I reset my password?", "ground_truth": "Tap 'Forgot password' on the sign-in screen and use the emailed link, which is valid for 30 minutes.", "relevant_doc_ids": ["account-and-password.md"]}
+{"question": "What does error E-1042 mean?", "ground_truth": "Low battery: replace the AAA batteries or connect a C-wire.", "relevant_doc_ids": ["error-codes.md"]}
+{"question": "My thermostat shows E-5120, what should I do?", "ground_truth": "It is a wiring mismatch between Y1 and G; re-check the wiring labels.", "relevant_doc_ids": ["error-codes.md"]}
+{"question": "Does the thermostat work with 5 GHz Wi-Fi?", "ground_truth": "No, only 2.4 GHz networks are supported.", "relevant_doc_ids": ["wifi-troubleshooting.md"]}
+{"question": "How long is the warranty on the LM-300 Pro?", "ground_truth": "Two years, extended to three years if registered within 30 days.", "relevant_doc_ids": ["warranty-and-returns.md"]}
+{"question": "How much does Lumen Plus cost?", "ground_truth": "$4.99 per month or $49 per year.", "relevant_doc_ids": ["billing-and-subscriptions.md"]}
+{"question": "Does the LM-200 need a C-wire?", "ground_truth": "No, it can run on its battery for up to six months without one.", "relevant_doc_ids": ["getting-started.md"]}
+{"question": "How many days do I have to return an unused product?", "ground_truth": "60 days for a full refund.", "relevant_doc_ids": ["warranty-and-returns.md"]}
+{"question": "How can I export my data?", "ground_truth": "Account > Privacy > Export data; a ZIP of CSV files is ready within 24 hours.", "relevant_doc_ids": ["privacy-and-data.md"]}
+{"question": "Can family members change billing settings?", "ground_truth": "No, only the account owner can change billing or remove devices.", "relevant_doc_ids": ["account-and-password.md"]}
+{"question": "What happens when a firmware update fails?", "ground_truth": "Error E-4017; the thermostat retries automatically every 6 hours.", "relevant_doc_ids": ["error-codes.md"]}
+{"question": "Is sensor fault E-3301 covered by warranty?", "ground_truth": "Yes, sensor faults are covered.", "relevant_doc_ids": ["warranty-and-returns.md", "error-codes.md"]}
+{"question": "When should support escalate an E-3301 ticket to Tier 2?", "ground_truth": "When the customer reports E-3301 twice within 30 days or a replacement shows the same fault.", "relevant_doc_ids": ["internal-escalation.md"], "groups": ["support"]}
+{"question": "How long is energy history kept without a subscription?", "ground_truth": "90 days.", "relevant_doc_ids": ["privacy-and-data.md"]}

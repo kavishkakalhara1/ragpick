@@ -1,0 +1,10 @@
+metadata:
+  name: corrective
+  description: >-
+    Corrective RAG: grade retrieved contexts, rewrite the query or fall back to
+    another source when retrieval quality is low.
+  best_for:
+    - noisy corpora where retrieval often misses
+  tradeoffs:
+    - extra LLM calls per query
+  status: planned

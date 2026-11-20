@@ -1,0 +1,10 @@
+metadata:
+  name: sql
+  description: >-
+    Text-to-SQL over structured data: the model writes a query, ragpick runs it
+    read-only and answers from the result rows.
+  best_for:
+    - databases, CSV exports, analytics questions ("how many", "top 10")
+  tradeoffs:
+    - needs schema descriptions and strict read-only sandboxing
+  status: planned

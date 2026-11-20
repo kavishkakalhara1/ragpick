@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+
+      - name: Install
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
+
+      - name: Ruff
+        run: |
+          uv run --no-sync ruff check .
+          uv run --no-sync ruff format --check .
+
+      - name: Mypy (strict)
+        run: uv run --no-sync mypy
+
+      - name: Config reference is up to date
+        run: uv run --no-sync python scripts/gen_config_reference.py --check
+
+      - name: Tests
+        run: >-
+          uv run --no-sync pytest
+          --cov=ragpick --cov-report=term-missing --cov-report=xml --cov-fail-under=85
+
+      - name: Docs build
+        if: matrix.python-version == '3.12'
+        run: uv run --no-sync mkdocs build --strict
+
+  package:
+    name: Build and smoke-test package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - run: uv build
+      - name: Install wheel in a clean venv and run the offline flow
+        run: |
+          uv venv /tmp/smoke
+          uv pip install --python /tmp/smoke/bin/python dist/*.whl
+          cd "$(mktemp -d)"
+          cp -r "$GITHUB_WORKSPACE/examples" .
+          /tmp/smoke/bin/ragpick init --blueprint naive --yes
+          /tmp/smoke/bin/ragpick ingest examples/data
+          /tmp/smoke/bin/ragpick query "How do I reset my password?" | grep -q "Citations:"

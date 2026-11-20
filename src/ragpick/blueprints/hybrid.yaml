@@ -1,0 +1,25 @@
+metadata:
+  name: hybrid
+  description: >-
+    BM25 keyword search and vector search fused with Reciprocal Rank Fusion,
+    with an optional cross-encoder reranker, then generation.
+  best_for:
+    - the default for commercial systems
+    - keyword-heavy domains (product codes, legal terms, IDs)
+    - medium and large corpora
+  tradeoffs:
+    - two indexes to build and keep in sync
+    - the optional reranker adds latency (tens to hundreds of ms)
+  status: stable
+defaults:
+  components:
+    loader: {type: directory, params: {glob: "**/*"}}
+    chunker: {type: recursive, params: {chunk_size: 800, overlap: 100}}
+    embedder: {type: fake, params: {dimension: 256}}
+    store: {type: memory}
+    keyword_index: {type: bm25, params: {k1: 1.5, b: 0.75}}
+    retriever: {type: hybrid, params: {k: 20, rrf_k: 60}}
+    reranker: {type: none}
+    generator: {type: fake}
+  query:
+    top_k: 5

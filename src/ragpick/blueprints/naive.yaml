@@ -1,0 +1,24 @@
+metadata:
+  name: naive
+  description: >-
+    Recursive chunking, dense embeddings, vector search, then generation.
+    The simplest architecture that works.
+  best_for:
+    - prototypes and demos
+    - small corpora (< 1k chunks)
+    - natural-language questions over prose
+  tradeoffs:
+    - misses exact-match terms (product codes, IDs, legal references)
+    - quality degrades as the corpus grows
+  status: stable
+defaults:
+  components:
+    loader: {type: directory, params: {glob: "**/*"}}
+    chunker: {type: recursive, params: {chunk_size: 800, overlap: 100}}
+    embedder: {type: fake, params: {dimension: 256}}
+    store: {type: memory}
+    retriever: {type: vector, params: {k: 5}}
+    reranker: {type: none}
+    generator: {type: fake}
+  query:
+    top_k: 5

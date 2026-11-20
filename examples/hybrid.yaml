@@ -1,0 +1,13 @@
+# Offline example: hybrid blueprint (BM25 + vector + RRF) with fake components.
+version: 1
+name: hybrid
+blueprint: hybrid
+data: data
+index_dir: .ragpick/hybrid
+requirements:
+  data_types: [markdown]
+  corpus_size: small
+  keyword_heavy: true      # error codes like E-4017, model numbers like LM-300
+  access_control: true     # internal docs carry `allowed_groups` front matter
+query:
+  top_k: 3
