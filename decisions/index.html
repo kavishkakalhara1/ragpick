@@ -424,6 +424,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing & caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../adapters/" class="md-nav__link">
         
   
@@ -577,6 +604,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#v03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.3
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tooling" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -681,6 +719,17 @@
     <span class="md-ellipsis">
       
         v0.2
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.3
       
     </span>
   </a>
@@ -832,6 +881,38 @@ interfaces extensible. Each decision is listed here so it can be revisited.</p>
     present (asymmetric models), so the <code>Embedder</code> protocol stays unchanged.</li>
 <li><strong>setup-uv is pinned to an exact version</strong> (<code>v10.3.3</code>) because it no longer publishes
     major tags, and sets <code>activate-environment: true</code>, which newer versions no longer imply.</li>
+</ol>
+<h2 id="v03">v0.3<a class="headerlink" href="#v03" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Tracing is built in and dependency-free</strong>: a context-variable span stack whose
+    <code>span()</code>/<code>set_attributes()</code> are no-ops without an active trace. OpenTelemetry and
+    similar backends are <code>trace_exporter</code> plugins rather than a dependency.</li>
+<li><strong>Cache = one SQLite file</strong>, keyed by SHA-256 of (namespace, component fingerprint,
+    input). Generator fingerprints include the system prompt, so prompt changes invalidate
+    answers. Cached answers report <code>usage.cached = True</code> and zero tokens.</li>
+<li><strong>The generator is built before the retriever</strong> and injected by name, so retrievers
+    that need an LLM (<code>corrective</code>, <code>sql</code>) reuse the pipeline's (cached, traced) model.</li>
+<li><strong><code>corrective</code> grades in one LLM call per round</strong> (all passages in one prompt), not one
+    call per passage. An unparseable grader reply keeps all contexts and logs a warning
+    (fail open on parsing, so a flaky model doesn't silence every answer). <code>grader: auto</code>
+    uses lexical grading for fake generators (<code>is_fake = True</code>).</li>
+<li><strong>Corrective refusal returns zero contexts</strong>, and the generator answers "I don't know"
+    without an LLM call. <code>on_failure: keep</code> opts out.</li>
+<li><strong>SQL uses the standard-library <code>sqlite3</code></strong> with defence in depth: read-only URI +
+    <code>query_only</code>, an authorizer that allows only <code>SELECT</code>/<code>READ</code>/<code>FUNCTION</code>/<code>RECURSIVE</code>
+    and only reads of visible real tables, single-<code>SELECT</code> validation, a progress-handler
+    timeout and a row cap. CTE names aren't tables; reads inside CTEs are checked
+    individually. Other databases (Postgres, …) can come later behind the same retriever.</li>
+<li><strong>SQL access control is table-level</strong> (<code>table_groups</code>), enforced in both the schema
+    prompt and the authorizer; row-level security is out of scope. Access-denied errors
+    are not retried, so the model can't probe.</li>
+<li><strong>CSV ingest goes through a <code>DocumentIndexer</code> hook</strong>: the <code>csv</code> loader yields one
+    document per file, the <code>none</code> chunker keeps the vector store empty, and the SQL
+    retriever builds <code>&lt;index_dir&gt;/sql/data.sqlite</code>. With <code>database:</code> set, no ingest is
+    required (<code>requires_ingest = False</code>).</li>
+<li><strong>The <code>sql</code> blueprint defaults to the fake generator</strong> like every blueprint (so building
+    it never needs a key), and the retriever explains at query time that SQL needs a real
+    LLM. Blueprints declare <code>data: documents | structured</code>; <code>bench</code> compares document ones.</li>
 </ol>
 <h2 id="tooling">Tooling<a class="headerlink" href="#tooling" title="Permanent link">&para;</a></h2>
 <ol>

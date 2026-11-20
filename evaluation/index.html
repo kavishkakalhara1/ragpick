@@ -18,7 +18,7 @@
         <link rel="prev" href="../plugins/">
       
       
-        <link rel="next" href="../adapters/">
+        <link rel="next" href="../operations/">
       
       
         
@@ -528,6 +528,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing & caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../adapters/" class="md-nav__link">
         
   
@@ -742,7 +769,9 @@ and ranks them:</p>
 <li><strong>Architecture</strong> (chunker, keyword index, retriever, reranker) comes from each blueprint.</li>
 <li><code>--metric</code> picks the winner: <code>hit_rate@k</code>, <code>mrr</code> (default), <code>precision@k</code>, or, with a
   judge, <code>faithfulness</code> / <code>answer_relevance</code>. Ties go to the lower median latency.</li>
-<li><code>-b NAME</code> (repeatable) limits the candidates; <code>--top-k</code> overrides k for all of them.</li>
+<li><code>-b NAME</code> (repeatable) limits the candidates; <code>--top-k</code> overrides k for all of them.
+  By default only document blueprints are compared; <code>sql</code> answers from tables and
+  needs a real LLM, so include it explicitly (<code>-b sql</code>) with a table dataset.</li>
 <li><code>--write best.yaml</code> saves the winner's config: your providers plus <code>blueprint: &lt;winner&gt;</code>.
   Secrets stay as <code>${ENV_VAR}</code> references.</li>
 <li>Each candidate gets a temporary index; your real indexes are never touched.</li>
@@ -833,8 +862,14 @@ in <code>ragpick/eval/prompts.py</code>.</p>
 </code></pre></div>
 <h2 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h2>
 <ul>
-<li>30–100 representative questions catch most regressions. Include the exact-term queries
-  your users really send (codes, IDs), plus some that should return "I don't know".</li>
+<li>
+<p>If <code>cache</code> is enabled, repeated runs reuse answers: costs drop to zero and latencies to
+  near zero. Disable the cache when measuring latency.</p>
+</li>
+<li>
+<p>30–100 representative questions catch most regressions. Include the exact-term queries
+  your users really send (codes, IDs), plus some that should return "I don't know".</p>
+</li>
 <li>Add eval to CI: run <code>ragpick eval ... --output results.json</code> and fail the build if
   <code>hit_rate@k</code> drops.</li>
 <li>The <code>fake</code> generator and judge are for plumbing tests. Their answer metrics aren't

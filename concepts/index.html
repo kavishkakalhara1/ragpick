@@ -528,6 +528,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing & caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../adapters/" class="md-nav__link">
         
   
@@ -692,12 +719,12 @@
 <tr>
 <td><code>loader</code></td>
 <td><code>load(path) -&gt; Iterable[Document]</code></td>
-<td><code>directory</code>, <code>text</code>, <code>pdf</code>, <code>langchain</code>, <code>llamaindex</code></td>
+<td><code>directory</code>, <code>text</code>, <code>pdf</code>, <code>csv</code>, <code>langchain</code>, <code>llamaindex</code></td>
 </tr>
 <tr>
 <td><code>chunker</code></td>
 <td><code>split(docs) -&gt; list[Chunk]</code></td>
-<td><code>recursive</code>, <code>fixed</code>, <code>parent_child</code></td>
+<td><code>recursive</code>, <code>fixed</code>, <code>parent_child</code>, <code>none</code></td>
 </tr>
 <tr>
 <td><code>embedder</code></td>
@@ -717,7 +744,7 @@
 <tr>
 <td><code>retriever</code></td>
 <td><code>retrieve(query, k, filters)</code></td>
-<td><code>vector</code>, <code>keyword</code>, <code>hybrid</code>, <code>parent_child</code>, <code>langchain</code>, <code>llamaindex</code></td>
+<td><code>vector</code>, <code>keyword</code>, <code>hybrid</code>, <code>parent_child</code>, <code>corrective</code>, <code>sql</code>, <code>langchain</code>, <code>llamaindex</code></td>
 </tr>
 <tr>
 <td><code>reranker</code></td>
@@ -735,6 +762,9 @@
 (text, <code>citations</code> as chunk ids, <code>contexts</code>, <code>usage</code>).</p>
 <p><strong>Ingest:</strong> loader → chunker → embedder → store (+ keyword index) → persisted to <code>index_dir</code>.</p>
 <p><strong>Query:</strong> retriever (with ACL filters) → reranker → generator → <code>Answer</code>.</p>
+<p>Components receive <code>embedder</code>, <code>store</code>, <code>keyword_index</code>, <code>generator</code> and <code>index_dir</code> by
+constructor parameter name. A component that implements <code>index_documents(docs)</code> also
+receives the raw documents at ingest; the SQL retriever uses this to build its database.</p>
 <h2 id="blueprints">Blueprints<a class="headerlink" href="#blueprints" title="Permanent link">&para;</a></h2>
 <p>A blueprint is a named, tested architecture: a YAML file with metadata (<code>description</code>,
 <code>best_for</code>, <code>tradeoffs</code>, <code>status</code>) and default components. Your <code>rag.yaml</code> names a
@@ -777,8 +807,12 @@ merged result with <code>ragpick validate</code>.</p>
 <td><code>hybrid</code></td>
 </tr>
 <tr>
-<td>structured data (sql, csv, …)</td>
-<td><code>sql</code> (planned) → warns and falls back to <code>hybrid</code></td>
+<td>structured data (csv, sql, sqlite, …)</td>
+<td><code>sql</code> (warns about mixed data and row-level ACL)</td>
+</tr>
+<tr>
+<td><code>strict_grounding</code> (wrong answers are costly)</td>
+<td><code>corrective</code> (over <code>parent_child</code> for long documents)</td>
 </tr>
 <tr>
 <td><code>latency: low</code></td>

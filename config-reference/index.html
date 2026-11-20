@@ -550,6 +550,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing & caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../adapters/" class="md-nav__link">
         
   
@@ -788,6 +815,18 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 <td>Evaluation settings.</td>
 </tr>
 <tr>
+<td><code>tracing</code></td>
+<td>TracingConfig</td>
+<td>see section</td>
+<td>Query tracing.</td>
+</tr>
+<tr>
+<td><code>cache</code></td>
+<td>CacheConfig</td>
+<td>see section</td>
+<td>Caching.</td>
+</tr>
+<tr>
 <td><code>index_dir</code></td>
 <td>str</td>
 <td><code>'.ragpick/index'</code></td>
@@ -830,6 +869,12 @@ Relative paths (<code>data</code>, <code>index_dir</code>) resolve against the c
 <td>bool</td>
 <td><code>False</code></td>
 <td>Documents are long and structured (manuals, policies, contracts).</td>
+</tr>
+<tr>
+<td><code>strict_grounding</code></td>
+<td>bool</td>
+<td><code>False</code></td>
+<td>Wrong answers are costly: prefer "I don't know" over guessing.</td>
 </tr>
 <tr>
 <td><code>latency</code></td>

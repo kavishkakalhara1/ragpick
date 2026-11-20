@@ -411,6 +411,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#corrective" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        corrective
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sql
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#adding-a-blueprint" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -498,6 +520,33 @@
     
   
     Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing & caching
   
 
     
@@ -624,6 +673,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#corrective" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        corrective
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sql
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#adding-a-blueprint" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -682,7 +753,7 @@
 </tr>
 <tr>
 <td><code>sql</code></td>
-<td>planned</td>
+<td>stable</td>
 <td>structured data and analytics questions (text-to-SQL)</td>
 </tr>
 <tr>
@@ -697,8 +768,8 @@
 </tr>
 <tr>
 <td><code>corrective</code></td>
-<td>planned</td>
-<td>noisy corpora: grade retrieval, rewrite, or fall back</td>
+<td>stable</td>
+<td>noisy corpora, high-stakes answers: grade retrieval, retry, or refuse</td>
 </tr>
 </tbody>
 </table>
@@ -749,6 +820,81 @@ document store. Citations and contexts use parent ids (<code>manual.md#3</code>)
 </code></pre></div>
 <p>Trade-offs: bigger prompts, and parent text is stored once per child. Set
 <code>requirements.long_documents: true</code> and <code>ragpick recommend</code> will suggest it.</p>
+<h2 id="corrective">corrective<a class="headerlink" href="#corrective" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>query → base retrieval (hybrid) → grade each context ─┬─ enough relevant → generator
+                                                      └─ too few → rewrite query → retrieve → grade
+                                                                   └─ still none → "I don't know"
+</code></pre></div>
+<p>Plain RAG answers from whatever it retrieved, even when that's irrelevant, and that is
+where many hallucinations come from. <code>corrective</code> checks first:</p>
+<ul>
+<li><strong>Grading</strong> asks the LLM which passages actually help answer the question (one call per
+  query). With the offline fake generator, a lexical test (share of question terms present)
+  is used instead.</li>
+<li><strong>Correction.</strong> If fewer than <code>min_relevant</code> contexts pass, an LLM rewrites the query
+  (exact terms kept, synonyms added) and it retrieves again. Offline, it searches deeper in
+  the ranking instead.</li>
+<li><strong>Refusal.</strong> If nothing relevant is found, no contexts are passed on and the answer is
+  "I don't know." (<code>on_failure: keep</code> falls back to the ungraded contexts.)</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="nt">blueprint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">corrective</span>
+<span class="nt">components</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">retriever</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">base</span><span class="p">:</span><span class="w"> </span><span class="nv">hybrid</span><span class="p p-Indicator">,</span><span class="nt"> grader</span><span class="p">:</span><span class="w"> </span><span class="nv">auto</span><span class="p p-Indicator">,</span><span class="nt"> min_relevant</span><span class="p">:</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="nt"> rewrite</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> on_failure</span><span class="p">:</span><span class="w"> </span><span class="nv">empty</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">generator</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="nv">openai</span><span class="p p-Indicator">,</span><span class="nt"> params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="nv">gpt-4o-mini</span><span class="p p-Indicator">}}</span><span class="w">   </span><span class="c1"># enables LLM grading</span>
+</code></pre></div>
+<p><code>base: parent_child</code> combines it with parent-child retrieval (set the chunker to
+<code>parent_child</code> too). Run <code>ragpick query --trace</code> to see the grade/rewrite steps. Set
+<code>requirements.strict_grounding: true</code> and the selector recommends it.</p>
+<h2 id="sql">sql<a class="headerlink" href="#sql" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>question + schema → LLM writes one SELECT → SQLite (read-only) → result rows → generator
+</code></pre></div>
+<p>For structured data, retrieval is the wrong tool: "how many LM-300s did we sell in
+October?" needs <code>SUM</code>, not similar text. The <code>sql</code> blueprint lets the LLM write the query
+and answers from the real result rows, citing the SQL.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">blueprint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sql</span>
+<span class="nt">data</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">tables</span><span class="w">                      </span><span class="c1"># CSV files: one table per file (loader type: csv)</span>
+<span class="nt">components</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">retriever</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">params</span><span class="p">:</span>
+<span class="w">      </span><span class="c1"># database: ./shop.sqlite   # …or query an existing SQLite file (no ingest needed)</span>
+<span class="w">      </span><span class="nt">table_groups</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">salaries</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">hr</span><span class="p p-Indicator">]}</span>
+<span class="w">      </span><span class="nt">max_rows</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span>
+<span class="w">  </span><span class="nt">generator</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="nv">openai</span><span class="p p-Indicator">,</span><span class="nt"> params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="nv">gpt-4o-mini</span><span class="p p-Indicator">}}</span><span class="w">   </span><span class="c1"># needs a real LLM</span>
+</code></pre></div>
+<p><strong>Safety is enforced by SQLite, not by the prompt:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>What it stops</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>read-only connection (<code>mode=ro</code>, <code>query_only</code>)</td>
+<td>any write, even if everything else failed</td>
+</tr>
+<tr>
+<td>authorizer allow-list</td>
+<td>anything but <code>SELECT</code>/reads/functions (<code>ATTACH</code>, <code>PRAGMA</code>, writes in CTEs), reads of hidden tables and of <code>sqlite_master</code></td>
+</tr>
+<tr>
+<td>statement check</td>
+<td>multiple statements, non-<code>SELECT</code> statements</td>
+</tr>
+<tr>
+<td>timeout and row cap</td>
+<td>runaway queries, huge results</td>
+</tr>
+</tbody>
+</table>
+<p>A failed query is retried once with the error message. Denied access is never retried,
+so a model can't probe for hidden tables.</p>
+<p><strong>Access control is table-level.</strong> <code>table_groups: {salaries: [hr]}</code> hides the table from
+the schema the LLM sees <em>and</em> denies it in the authorizer, unless the caller is in <code>hr</code>
+(<code>--groups hr</code>). There is no row-level security: split restricted rows into their own
+table. <code>ragpick bench</code> skips <code>sql</code> unless you pass <code>-b sql</code>.</p>
 <h2 id="adding-a-blueprint">Adding a blueprint<a class="headerlink" href="#adding-a-blueprint" title="Permanent link">&para;</a></h2>
 <p>A blueprint is one YAML file in <code>src/ragpick/blueprints/</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span>
