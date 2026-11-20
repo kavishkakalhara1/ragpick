@@ -1,0 +1,10 @@
+metadata:
+  name: multimodal
+  description: >-
+    Retrieve and answer over images, charts, scanned pages and tables inside
+    documents, using vision-capable embeddings and LLMs.
+  best_for:
+    - manuals with diagrams, scanned forms, slide decks, PDF reports with charts
+  tradeoffs:
+    - vision models are slower and more expensive than text-only pipelines
+  status: planned

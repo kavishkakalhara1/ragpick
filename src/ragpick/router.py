@@ -261,12 +261,15 @@ class Router:
         groups: list[str] | None = None,
         filters: dict[str, Any] | None = None,
         top_k: int | None = None,
+        tenant: str | None = None,
     ) -> list[RetrievedChunk]:
         """Retrieve contexts from the chosen route."""
         route, _ = self.choose(question, groups)
         if route is None:
             return []
-        return route.pipeline.retrieve(question, groups=groups, filters=filters, top_k=top_k)
+        return route.pipeline.retrieve(
+            question, groups=groups, filters=filters, top_k=top_k, tenant=tenant
+        )
 
     def query(
         self,
@@ -276,12 +279,16 @@ class Router:
         filters: dict[str, Any] | None = None,
         top_k: int | None = None,
         trace: bool | None = None,
+        tenant: str | None = None,
     ) -> Answer:
-        """Route ``question`` and answer it; ``answer.route`` names the route used."""
+        """Route ``question`` and answer it; ``answer.route`` names the route used.
+
+        ``tenant`` is passed to the route pipelines (which must be multi-tenant).
+        """
         if not (self.tracing_config.enabled if trace is None else trace):
-            return self._query(question, groups, filters, top_k)
+            return self._query(question, groups, filters, top_k, tenant)
         with tracing.trace("query", router=self.name, groups=len(groups or [])) as root:
-            answer = self._query(question, groups, filters, top_k)
+            answer = self._query(question, groups, filters, top_k, tenant)
         answer.trace = root
         for exporter in self.exporters:
             try:
@@ -297,6 +304,7 @@ class Router:
         groups: list[str] | None = None,
         filters: dict[str, Any] | None = None,
         top_k: int | None = None,
+        tenant: str | None = None,
     ) -> Iterator[StreamEvent]:
         """Route, then stream from the chosen route (no fallback: text is already sent)."""
         route, _ = self.choose(question, groups)
@@ -305,7 +313,10 @@ class Router:
             yield StreamEvent(type="delta", text=IDK)
             yield StreamEvent(type="answer", answer=Answer(text=IDK))
             return
-        for event in route.pipeline.stream(question, groups=groups, filters=filters, top_k=top_k):
+        events = route.pipeline.stream(
+            question, groups=groups, filters=filters, top_k=top_k, tenant=tenant
+        )
+        for event in events:
             if event.answer is not None:
                 event.answer.route = route.name
             yield event
@@ -316,13 +327,16 @@ class Router:
         groups: list[str] | None,
         filters: dict[str, Any] | None,
         top_k: int | None,
+        tenant: str | None = None,
     ) -> Answer:
         with span("route", strategy=self.strategy):
             route, reason = self.choose(question, groups)
             set_attributes(route=route.name if route else None, reason=reason)
         if route is None:
             return Answer(text=IDK)
-        answer = route.pipeline.query(question, groups=groups, filters=filters, top_k=top_k)
+        answer = route.pipeline.query(
+            question, groups=groups, filters=filters, top_k=top_k, tenant=tenant
+        )
         answer.route = route.name
         backup = self._fallback_route(route, groups) if _cannot_answer(answer) else None
         if backup is not None:
@@ -338,9 +352,20 @@ class Router:
 
     # ------------------------------------------------------------------ ingest
     def ingest(
-        self, path: str | Path | None = None, *, progress: ProgressCallback | None = None
+        self,
+        path: str | Path | None = None,
+        *,
+        progress: ProgressCallback | None = None,
+        tenant: str | None = None,
     ) -> dict[str, IngestStats]:
-        """Ingest every route that needs it, from each route's own ``data`` path."""
+        """Ingest every route that needs it, from each route's own ``data`` path.
+
+        For multi-tenant routes, ingest each route config per tenant instead.
+        """
+        if tenant is not None:
+            raise ConfigError(
+                "Routers can't ingest per tenant; ingest each route's config with --tenant"
+            )
         if path is not None:
             raise ConfigError("A router ingests each route's own `data`; run it without a PATH")
         stats: dict[str, IngestStats] = {}

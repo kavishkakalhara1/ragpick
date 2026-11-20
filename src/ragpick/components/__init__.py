@@ -1,6 +1,7 @@
 """Built-in components. Importing this package registers them all."""
 
 from ragpick.components import (
+    agentic,
     chunkers,
     corrective,
     embedders,
@@ -15,6 +16,7 @@ from ragpick.components import (
 )
 
 __all__ = [
+    "agentic",
     "chunkers",
     "corrective",
     "embedders",

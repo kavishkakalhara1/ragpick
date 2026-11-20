@@ -35,7 +35,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from ragpick.components.generators import split_sentences
-from ragpick.components.keyword import ENGLISH_STOPWORDS
+from ragpick.components.keyword import ENGLISH_STOPWORDS, tokenize
 from ragpick.components.retrievers import HybridRetriever, reciprocal_rank_fusion
 from ragpick.errors import ConfigError
 from ragpick.filters import matches_filters
@@ -61,6 +61,37 @@ Only use facts stated in the text.
 
 Text:
 {text}"""
+
+SUMMARY_SYSTEM = (
+    "You summarise a cluster of related entities from a document collection. "
+    "Write 2-4 plain sentences describing the theme and the key facts. Use only the "
+    "information given."
+)
+
+SUMMARY_PROMPT = """Entities: {entities}
+
+Relations:
+{relations}
+
+Excerpts:
+{excerpts}
+
+Summarise this cluster's theme and key facts."""
+
+_GLOBAL_RE = re.compile(
+    r"\b(main|key|major|common|recurring)\s+(themes?|topics?|issues?|points?|trends?)\b|"
+    r"\b(overview|summari[sz]e|summary|overall|in general|across (all|the)|big picture)\b",
+    re.IGNORECASE,
+)
+
+_GLOBAL_TERMS = frozenset(
+    {
+        "main", "key", "major", "common", "recurring", "theme", "themes", "topic", "topics",
+        "issue", "issues", "point", "points", "trend", "trends", "overview", "summarize",
+        "summarise", "summary", "overall", "general", "across", "big", "picture",
+        "documents", "document", "corpus", "collection",
+    }
+)  # fmt: skip
 
 _CODE_RE = re.compile(r"\b[A-Z]{1,6}-?\d{1,6}[A-Z]?\b")  # E-1042, LM-300, ISO27001
 _ACRONYM_RE = re.compile(r"\b[A-Z]{2,6}\b")  # HVAC, SMS
@@ -169,6 +200,7 @@ class KnowledgeGraph:
         self.nodes: dict[str, dict[str, Any]] = {}
         self.edges: dict[tuple[str, str], dict[str, str]] = {}
         self.chunks: dict[str, Chunk] = {}
+        self.communities: list[dict[str, Any]] = []
         self._adjacency: dict[str, set[str]] | None = None
 
     def __len__(self) -> int:
@@ -281,6 +313,60 @@ class KnowledgeGraph:
         out.sort(key=lambda t: (t[0], t[1]))
         return [line for _, line in out[:limit]]
 
+    # ------------------------------------------------------------- communities
+    def detect_communities(self, max_iterations: int = 20) -> list[list[str]]:
+        """Group entities by deterministic weighted label propagation.
+
+        Each entity repeatedly adopts the label with the most supporting chunks among
+        its neighbours (ties → smallest label). Returns groups of two or more entities,
+        largest first.
+        """
+        weights: dict[str, dict[str, int]] = {k: {} for k in self.nodes}
+        for (a, b), support in self.edges.items():
+            if a in weights and b in weights:
+                weights[a][b] = weights[a].get(b, 0) + len(support)
+                weights[b][a] = weights[b].get(a, 0) + len(support)
+        labels = {k: k for k in self.nodes}
+        for _ in range(max_iterations):
+            changed = False
+            for node in sorted(self.nodes):
+                if not weights[node]:
+                    continue
+                score: dict[str, int] = {}
+                for neighbour, w in weights[node].items():
+                    score[labels[neighbour]] = score.get(labels[neighbour], 0) + w
+                best = min(score, key=lambda lab: (-score[lab], lab))
+                if score[best] > score.get(labels[node], 0) and best != labels[node]:
+                    labels[node] = best
+                    changed = True
+            if not changed:
+                break
+        groups: dict[str, list[str]] = {}
+        for node, label in labels.items():
+            groups.setdefault(label, []).append(node)
+        communities = [sorted(g) for g in groups.values() if len(g) >= 2]
+        return sorted(communities, key=lambda g: (-len(g), g))
+
+    def community_material(self, members: list[str]) -> tuple[list[str], list[str], list[str]]:
+        """``(entity names, relation lines, supporting chunk ids)`` for a community."""
+        member_set = set(members)
+        names = [self.nodes[m]["name"] for m in members]
+        relations: list[str] = []
+        chunk_ids: set[str] = set()
+        for m in members:
+            chunk_ids.update(self.nodes[m]["mentions"])
+        seen_pairs: set[frozenset[str]] = set()
+        for (a, b), support in sorted(self.edges.items()):
+            if a in member_set and b in member_set:
+                chunk_ids.update(support)
+                pair = frozenset((a, b))
+                if pair in seen_pairs:  # A→B and B→A: describe the link once
+                    continue
+                seen_pairs.add(pair)
+                relation = support[sorted(support)[0]]
+                relations.append(f"{self.nodes[a]['name']} → {relation} → {self.nodes[b]['name']}")
+        return names, relations, sorted(chunk_ids & set(self.chunks))
+
     # ------------------------------------------------------------- persistence
     def persist(self, path: Path) -> None:
         """Write ``graph.json`` into ``path``."""
@@ -290,6 +376,7 @@ class KnowledgeGraph:
             "nodes": self.nodes,
             "edges": [[a, b, support] for (a, b), support in self.edges.items()],
             "chunks": [c.model_dump(exclude={"embedding"}) for c in self.chunks.values()],
+            "communities": self.communities,
         }
         (path / GRAPH_FILE).write_text(json.dumps(data), encoding="utf-8")
 
@@ -302,6 +389,7 @@ class KnowledgeGraph:
         self.nodes = data["nodes"]
         self.edges = {(a, b): support for a, b, support in data["edges"]}
         self.chunks = {c["id"]: Chunk.model_validate(c) for c in data["chunks"]}
+        self.communities = list(data.get("communities", []))
         self._adjacency = None
         return True
 
@@ -317,6 +405,9 @@ class GraphRetriever:
         graph_weight: RRF weight of the graph ranking relative to hybrid search.
         include_facts: put a "knowledge graph facts" context first.
         max_facts: cap on fact lines.
+        mode: ``local`` (entity search), ``global`` (community summaries) or ``auto``
+            (global for "main themes / overview / summarise" questions).
+        communities: build community summaries at ingest (needed for global search).
     """
 
     def __init__(
@@ -334,7 +425,11 @@ class GraphRetriever:
         include_facts: bool = True,
         max_facts: int = 15,
         max_entities_per_chunk: int = 12,
+        mode: str = "auto",
+        communities: bool = True,
     ) -> None:
+        if mode not in ("auto", "local", "global"):
+            raise ConfigError(f"mode must be auto, local or global, got {mode!r}")
         if extractor not in ("auto", "llm", "heuristic"):
             raise ConfigError(f"extractor must be auto, llm or heuristic, got {extractor!r}")
         if hops < 0:
@@ -357,6 +452,8 @@ class GraphRetriever:
         self.include_facts = include_facts
         self.max_facts = max_facts
         self.max_entities = max_entities_per_chunk
+        self.query_mode = mode
+        self.build_communities = communities
 
     def _ensure_loaded(self) -> None:
         if not self._loaded:
@@ -383,15 +480,110 @@ class GraphRetriever:
             for chunk in chunks:
                 self.graph.add(chunk, self.extract(chunk.text))
             set_attributes(entities=len(self.graph), relations=len(self.graph.edges))
+        if self.build_communities:
+            self.rebuild_communities()
         self.graph.persist(self.path)
+
+    def summarize(self, names: list[str], relations: list[str], chunk_ids: list[str]) -> str:
+        """Community summary: LLM-written, or a deterministic template offline."""
+        if self.llm is not None:
+            excerpts = "\n".join(f"- {self.graph.chunks[cid].text[:300]}" for cid in chunk_ids[:5])
+            prompt = SUMMARY_PROMPT.format(
+                entities=", ".join(names[:30]),
+                relations="\n".join(f"- {r}" for r in relations[:30]) or "(none)",
+                excerpts=excerpts or "(none)",
+            )
+            text = self.llm.complete(SUMMARY_SYSTEM, prompt).text.strip()
+            if text:
+                return text
+        listed = ", ".join(names[:12]) + (" and others" if len(names) > 12 else "")
+        connections = "; ".join(relations[:8])
+        summary = f"Topic covering {listed}."
+        if connections:
+            summary += f" Connections: {connections}."
+        return summary
+
+    def rebuild_communities(self) -> None:
+        """Recompute communities; reuse summaries whose members and relations are unchanged."""
+        previous = {c["signature"]: c for c in self.graph.communities}
+        built: list[dict[str, Any]] = []
+        reused = 0
+        with span("graph_communities") as s:
+            for members in self.graph.detect_communities():
+                names, relations, chunk_ids = self.graph.community_material(members)
+                signature = hashlib.sha256(
+                    json.dumps([members, relations, chunk_ids]).encode("utf-8")
+                ).hexdigest()[:16]
+                if signature in previous:
+                    built.append(previous[signature])
+                    reused += 1
+                    continue
+                built.append(
+                    {
+                        "id": signature[:10],
+                        "signature": signature,
+                        "entities": names,
+                        "chunks": chunk_ids,
+                        "summary": self.summarize(names, relations, chunk_ids),
+                    }
+                )
+            if s is not None:
+                s.attributes.update(communities=len(built), reused=reused)
+        self.graph.communities = built
+
+    def is_global(self, query: str) -> bool:
+        """Whether ``query`` should use global (community) search."""
+        if self.query_mode != "auto":
+            return self.query_mode == "global"
+        return bool(_GLOBAL_RE.search(query))
+
+    def global_search(
+        self, query: str, k: int, filters: dict[str, Any] | None
+    ) -> list[RetrievedChunk]:
+        """Community summaries relevant to ``query`` that the caller may fully see."""
+        terms = set(tokenize(query)) - _GLOBAL_TERMS
+        scored: list[tuple[float, int, dict[str, Any]]] = []
+        for i, community in enumerate(self.graph.communities):
+            chunks = [self.graph.chunks.get(cid) for cid in community["chunks"]]
+            # visible only if *every* contributing chunk is: summaries mix their sources
+            if not chunks or any(
+                c is None or not matches_filters(c.metadata, filters) for c in chunks
+            ):
+                continue
+            words = set(tokenize(community["summary"] + " " + " ".join(community["entities"])))
+            overlap = len(terms & words) if terms else 0
+            if terms and overlap == 0:
+                continue
+            scored.append((overlap + 0.01 * len(community["entities"]), -i, community))
+        scored.sort(key=lambda t: (-t[0], -t[1]))
+        results = []
+        for score, _, community in scored[:k]:
+            text = (
+                f"Community summary ({len(community['entities'])} entities): {community['summary']}"
+            )
+            chunk = Chunk(
+                id=f"graph:community#{community['id']}",
+                doc_id="graph:community",
+                text=text,
+                metadata={"synthetic": True, "entities": community["entities"][:20]},
+            )
+            results.append(RetrievedChunk(chunk=chunk, score=float(score), source="graph"))
+        return results
 
     # -------------------------------------------------------------- query
     def retrieve(
         self, query: str, k: int | None = None, filters: dict[str, Any] | None = None
     ) -> list[RetrievedChunk]:
-        """Facts context (optional) followed by graph + hybrid fused chunks."""
+        """Global: community summaries; local: facts context + graph/hybrid fused chunks."""
         k = k or self.k
         self._ensure_loaded()
+        if self.is_global(query):
+            with span("graph_global", communities=len(self.graph.communities)) as gs:
+                summaries = self.global_search(query, k, filters)
+                if gs is not None:
+                    gs.attributes["selected"] = len(summaries)
+            if summaries:
+                return summaries
         with span("graph_search", hops=self.hops) as s:
             seeds = self.graph.match(query)
             hood = self.graph.neighborhood(seeds, self.hops) if seeds else {}

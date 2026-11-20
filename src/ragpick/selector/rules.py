@@ -133,6 +133,33 @@ RULES: list[Rule] = [
         alternatives=("hybrid",),
     ),
     Rule(
+        id="complex_questions",
+        when=lambda c: _r(c).complex_questions,
+        blueprint="agentic",
+        priority=62,
+        reason=(
+            "Multi-part and comparison questions: the agentic retriever plans several "
+            "searches (one per sub-question or follow-up) and fuses what it finds."
+        ),
+        alternatives=("hybrid",),
+    ),
+    Rule(
+        id="agentic_low_latency",
+        when=lambda c: _r(c).complex_questions and _r(c).latency == "low",
+        warning=(
+            "agentic runs up to max_steps searches (plus a planning LLM call each); lower "
+            "max_steps or measure with `ragpick bench` against your latency budget."
+        ),
+    ),
+    Rule(
+        id="multi_tenant",
+        when=lambda c: _r(c).multi_tenant,
+        reason=(
+            "Multi-tenant: enable `tenancy: {{enabled: true}}` so every tenant gets an "
+            "isolated index, and bind API keys to tenants in `serve.api_keys`."
+        ),
+    ),
+    Rule(
         id="multi_hop_strict",
         when=lambda c: _r(c).multi_hop and _r(c).strict_grounding,
         warning=(

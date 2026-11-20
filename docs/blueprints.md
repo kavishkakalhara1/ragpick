@@ -8,8 +8,9 @@ Run `ragpick blueprints` to see this list in your terminal.
 | `hybrid` | stable | the default for commercial systems; keyword-heavy domains; medium and large corpora |
 | `parent_child` | stable | long structured documents where answers need surrounding context |
 | `sql` | stable | structured data and analytics questions (text-to-SQL) |
-| `graph` | stable | multi-hop questions across documents (GraphRAG local search) |
-| `agentic` | planned | complex questions needing several lookups or tools |
+| `graph` | stable | multi-hop and "main themes" questions (GraphRAG local + global search) |
+| `agentic` | stable | multi-part and comparison questions needing several lookups |
+| `multimodal` | planned | images, charts and scanned pages inside documents |
 | `corrective` | stable | noisy corpora, high-stakes answers: grade retrieval, retry, or refuse |
 
 ## naive
@@ -149,10 +150,45 @@ components:
   included only if at least one chunk *visible to the caller* supports it.
 - **Evaluation.** The facts context is marked `synthetic` and doesn't count in retrieval
   metrics.
-- **Scope.** This is GraphRAG *local* search. Corpus-wide "what are the main themes?"
-  questions (community summaries) are on the roadmap.
+- **Global search.** After ingest, related entities are grouped into communities
+  (label propagation), and each community gets a short summary: LLM-written, or a
+  template offline. Unchanged communities keep their summaries, so re-ingesting doesn't
+  re-pay for them. Questions like "what are the main themes?", "give an overview of …" or
+  "summarise …" (`mode: auto`) are answered from the most relevant summaries instead of
+  individual chunks. `mode: global` / `local` forces one or the other. A summary is
+  shown only if the caller can see **every** chunk it was built from, so summaries never
+  mix in restricted content.
 
 Set `requirements.multi_hop: true` and the selector recommends it.
+
+## agentic
+
+```text
+question → search ─┐
+           plan ───┼→ search (sub-question / follow-up) ─┐
+           plan ───┴→ … up to max_steps ──────────────────┴→ RRF over all searches → generator
+```
+
+"How do I reset my password **and** how much does Lumen Plus cost?" needs two lookups.
+The agentic retriever searches for the question, then lets the LLM decide whether to run
+another search (and with what query) or finish, up to `max_steps`. It stops early when
+searches stop finding anything new. All result lists are fused with Reciprocal Rank
+Fusion.
+
+```yaml
+blueprint: agentic
+components:
+  retriever:
+    params: {base: hybrid, max_steps: 4, per_search_k: 4, planner: auto}
+  generator: {type: openai, params: {model: gpt-4o-mini}}   # enables the LLM planner
+```
+
+Offline (or with `planner: decompose`), multi-part questions are split on "and", "vs",
+"compared to", `;` and sentence breaks, and each part is searched. Every search goes
+through the base retriever (`hybrid`, `vector`, `parent_child` or `graph`) with the caller's
+filters, so access control holds. `ragpick query --trace` shows each `agent_plan` and
+`agent_search` step. Set `requirements.complex_questions: true` and the selector
+recommends it.
 
 ## sql
 

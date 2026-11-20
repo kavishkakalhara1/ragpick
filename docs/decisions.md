@@ -200,6 +200,31 @@ interfaces extensible. Each decision is listed here so it can be revisited.
     function denylist. A least-privilege database role remains the primary boundary.
     `psycopg` is loaded lazily with a custom install hint (no new extra).
 
+## v0.6
+
+66. **Communities use deterministic weighted label propagation** (stdlib, reproducible,
+    near-linear) rather than Louvain/Leiden; it's good enough for summarising themes.
+    Communities have at least two entities.
+67. **Community summaries are keyed by a signature** of members, relations and supporting
+    chunks, and reused while unchanged, so re-ingest only re-summarises what changed.
+68. **Global search returns community summaries as synthetic contexts** (the generator does
+    the "reduce" step); there is no separate map step per community, which keeps it to
+    one LLM call. Questions route to global search by cue phrases (`mode: auto`), and fall
+    back to local search if no visible summary matches.
+69. **A summary is visible only if all its supporting chunks are visible** (conservative:
+    a summary can't be partially redacted, so any restricted source hides it).
+70. **Agentic retrieval is a retriever, not a chat agent**: it plans searches and returns
+    fused contexts, so the grounded generator, citations, evaluation and access control
+    stay unchanged. It always searches the original question first; repeats, two idle
+    searches in a row, or `max_steps` end the loop. Unparseable plans count as "finish".
+71. **Tenancy creates a child pipeline per tenant** with its own index directory and fresh
+    stateful components (store, keyword index, retriever), sharing stateless ones
+    (embedder, generator, cache). An LRU bounds memory. Tenant ids are restricted to a
+    filesystem-safe pattern before any path is built.
+72. **Tenancy is explicit both ways**: multi-tenant pipelines require a tenant, normal
+    pipelines reject one (a `TenantError`, HTTP 400). Tenant-bound API keys override and
+    restrict the request's tenant (403 on mismatch).
+
 ## Tooling
 
 31. **`types-PyYAML` is not a dev dependency** (it wasn't in the approved list), so mypy

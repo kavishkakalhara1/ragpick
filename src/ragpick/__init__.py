@@ -20,7 +20,7 @@ from ragpick.pipeline import Pipeline
 from ragpick.registry import register, registry
 from ragpick.router import Route, Router, load_engine
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 __all__ = [
     "Answer",

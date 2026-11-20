@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+import threading
 import time
+from collections import OrderedDict
 from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from typing import Any
@@ -14,8 +17,8 @@ from pydantic import BaseModel
 from ragpick import interfaces, tracing
 from ragpick.cache import Cache, CachedEmbedder, wrap_generator
 from ragpick.components.generators import parse_citations
-from ragpick.config import ComponentSpec, RagConfig, build_config, load_config
-from ragpick.errors import ConfigError, IndexNotFoundError
+from ragpick.config import ComponentSpec, RagConfig, TenancyConfig, build_config, load_config
+from ragpick.errors import ConfigError, IndexNotFoundError, TenantError
 from ragpick.filters import acl_filter
 from ragpick.models import Answer, RetrievedChunk, StreamEvent, Usage
 from ragpick.registry import Registry, registry
@@ -43,6 +46,23 @@ MANIFEST = "ragpick.json"
 
 #: ``progress(stage, done, total)`` callback used by :meth:`Pipeline.ingest`.
 ProgressCallback = Callable[[str, int, int], None]
+
+
+_TENANT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+
+
+def validate_tenant(tenant: str) -> str:
+    """Check a tenant id (letters, digits, ``-``, ``_``; max 64): it becomes a directory name.
+
+    Raises:
+        TenantError: the id could escape the index directory or is otherwise invalid.
+    """
+    if not isinstance(tenant, str) or not _TENANT_RE.match(tenant):
+        raise TenantError(
+            f"Invalid tenant id {tenant!r}: use 1-64 letters, digits, '-' or '_', "
+            "starting with a letter or digit"
+        )
+    return tenant
 
 
 def _fingerprint(spec: ComponentSpec) -> dict[str, Any]:
@@ -84,6 +104,8 @@ class Pipeline:
         self._registry = component_registry or registry
         self._injected = dict(components or {})
         self._loaded = False
+        self._tenants: OrderedDict[str, Pipeline] = OrderedDict()
+        self._tenant_lock = threading.Lock()
         c = config.components
         self.cache: Cache | None = None
         if config.cache.enabled:
@@ -198,8 +220,58 @@ class Pipeline:
         return bool(getattr(self.retriever, "requires_ingest", True))
 
     def ready(self) -> bool:
-        """Whether the pipeline can answer queries now (index present or not needed)."""
+        """Whether the pipeline can answer queries now (index present or not needed).
+
+        Multi-tenant pipelines are always ready; each tenant's index is checked per query.
+        """
+        if self.config.tenancy.enabled:
+            return True
         return self.has_index() or not self.requires_ingest
+
+    # ------------------------------------------------------------------ tenancy
+    def for_tenant(self, tenant: str) -> Pipeline:
+        """The pipeline for ``tenant`` (isolated index; models and cache are shared).
+
+        Tenant pipelines are created on first use and kept in an LRU of
+        ``tenancy.max_loaded`` entries.
+
+        Raises:
+            TenantError: tenancy is disabled or the tenant id is invalid.
+        """
+        if not self.config.tenancy.enabled:
+            raise TenantError(
+                "A tenant was given, but this pipeline isn't multi-tenant "
+                "(set tenancy.enabled: true)"
+            )
+        tenant = validate_tenant(tenant)
+        with self._tenant_lock:
+            pipeline = self._tenants.pop(tenant, None)
+            if pipeline is None:
+                cfg = self.config.model_copy(deep=True)
+                cfg.index_dir = str(self.index_dir / "tenants" / tenant)
+                cfg.tenancy = TenancyConfig(enabled=False)
+                cfg.cache = cfg.cache.model_copy(update={"enabled": False})  # shared below
+                cfg.with_base_dir(self.config.base_dir)
+                shared = {
+                    k: v
+                    for k, v in self._injected.items()
+                    if k not in ("store", "keyword_index", "retriever")  # per-tenant state
+                }
+                shared.update(embedder=self.embedder, generator=self.generator)
+                pipeline = Pipeline(cfg, components=shared, component_registry=self._registry)
+                pipeline.exporters = self.exporters
+            self._tenants[tenant] = pipeline
+            while len(self._tenants) > self.config.tenancy.max_loaded:
+                self._tenants.popitem(last=False)
+        return pipeline
+
+    def _resolve(self, tenant: str | None) -> Pipeline | None:
+        """The tenant pipeline to delegate to, ``None`` to handle the call here."""
+        if tenant is not None:
+            return self.for_tenant(tenant)
+        if self.config.tenancy.enabled:
+            raise TenantError("This pipeline is multi-tenant: pass a tenant id")
+        return None
 
     # ------------------------------------------------------------------ persistence
     @property
@@ -269,12 +341,16 @@ class Pipeline:
         *,
         batch_size: int = 64,
         progress: ProgressCallback | None = None,
+        tenant: str | None = None,
     ) -> IngestStats:
         """Load, chunk, embed, index and persist the documents at ``path``.
 
         Re-ingesting a document replaces its previous chunks; other documents already
         in the index are kept. ``path`` defaults to the config's ``data`` setting.
+        With tenancy enabled, ``tenant`` selects the tenant's isolated index.
         """
+        if (delegate := self._resolve(tenant)) is not None:
+            return delegate.ingest(path, batch_size=batch_size, progress=progress)
         start = time.perf_counter()
         if path is None:
             if self.config.data is None:
@@ -340,12 +416,15 @@ class Pipeline:
         groups: list[str] | None = None,
         filters: dict[str, Any] | None = None,
         top_k: int | None = None,
+        tenant: str | None = None,
     ) -> list[RetrievedChunk]:
         """Retrieve and rerank contexts without generating an answer.
 
         Access control is always enforced: chunks with ``allowed_groups`` metadata are
         returned only when ``groups`` intersects them (``groups=None`` → public only).
         """
+        if (delegate := self._resolve(tenant)) is not None:
+            return delegate.retrieve(question, groups=groups, filters=filters, top_k=top_k)
         self._ensure_loaded()
         top_k = top_k or self.config.query.top_k
         combined = acl_filter(groups, filters)
@@ -366,13 +445,18 @@ class Pipeline:
         filters: dict[str, Any] | None = None,
         top_k: int | None = None,
         trace: bool | None = None,
+        tenant: str | None = None,
     ) -> Answer:
-        """Answer ``question`` from the index.
+        """Answer ``question`` from the index (the ``tenant``'s index when multi-tenant).
 
         ``answer.usage.latency_ms`` covers the whole query (retrieval + generation).
         With ``trace=True`` (or ``tracing.enabled`` in the config) ``answer.trace``
         holds the timed spans of every stage, and configured exporters receive it.
         """
+        if (delegate := self._resolve(tenant)) is not None:
+            return delegate.query(
+                question, groups=groups, filters=filters, top_k=top_k, trace=trace
+            )
         if tracing.tracing_active():  # e.g. called by a router: join its trace
             with span("pipeline", app=self.config.name, blueprint=self.config.blueprint):
                 return self._query(question, groups, filters, top_k)
@@ -397,11 +481,15 @@ class Pipeline:
         groups: list[str] | None = None,
         filters: dict[str, Any] | None = None,
         top_k: int | None = None,
+        tenant: str | None = None,
     ) -> Iterator[StreamEvent]:
         """Answer ``question`` as a stream of events: contexts, text deltas, final answer.
 
         Generators without ``stream()`` produce a single delta. Streams are not traced.
         """
+        if (delegate := self._resolve(tenant)) is not None:
+            yield from delegate.stream(question, groups=groups, filters=filters, top_k=top_k)
+            return
         start = time.perf_counter()
         contexts = self.retrieve(question, groups=groups, filters=filters, top_k=top_k)
         yield StreamEvent(type="contexts", contexts=contexts)

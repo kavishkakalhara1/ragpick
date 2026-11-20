@@ -61,6 +61,7 @@ class QueryRequest(BaseModel):
     top_k: int | None = Field(None, ge=1, le=50)
     trace: bool = False
     stream: bool = False
+    tenant: str | None = Field(None, max_length=64)
 
 
 @dataclass
@@ -152,6 +153,14 @@ class App:
             raise HTTPError(403, f"This API key may not act as groups: {', '.join(forbidden)}")
         return requested
 
+    @staticmethod
+    def _tenant(key: ApiKeySpec | None, requested: str | None) -> str | None:
+        if key is None or key.tenant is None:
+            return requested
+        if requested is not None and requested != key.tenant:
+            raise HTTPError(403, "This API key is bound to a different tenant")
+        return key.tenant
+
     def _cors(self, headers: dict[str, str]) -> dict[str, str]:
         origin = headers.get("origin")
         allowed = self.config.cors_origins
@@ -199,7 +208,7 @@ class App:
             ]
         return Response(200, body)
 
-    def _stream(self, req: QueryRequest, groups: list[str] | None) -> Response:
+    def _stream(self, req: QueryRequest, groups: list[str] | None, tenant: str | None) -> Response:
         events = self.engine.stream(
             req.question, groups=groups, filters=req.filters, top_k=req.top_k
         )
@@ -233,22 +242,29 @@ class App:
             content_type="text/event-stream",
         )
 
-    def _query(self, req: QueryRequest, groups: list[str] | None) -> Response:
+    def _query(self, req: QueryRequest, groups: list[str] | None, tenant: str | None) -> Response:
         if req.stream:
             if req.trace:
                 raise HTTPError(400, "Streaming responses cannot include traces")
-            return self._stream(req, groups)
+            return self._stream(req, groups, tenant)
         trace = req.trace and self.config.allow_traces
         if req.trace and not self.config.allow_traces:
             raise HTTPError(403, "Traces are disabled on this server (serve.allow_traces)")
         answer = self.engine.query(
-            req.question, groups=groups, filters=req.filters, top_k=req.top_k, trace=trace or None
+            req.question,
+            groups=groups,
+            filters=req.filters,
+            top_k=req.top_k,
+            trace=trace or None,
+            tenant=tenant,
         )
         return Response(200, answer_json(answer, trace))
 
-    def _retrieve(self, req: QueryRequest, groups: list[str] | None) -> Response:
+    def _retrieve(
+        self, req: QueryRequest, groups: list[str] | None, tenant: str | None
+    ) -> Response:
         contexts = self.engine.retrieve(
-            req.question, groups=groups, filters=req.filters, top_k=req.top_k
+            req.question, groups=groups, filters=req.filters, top_k=req.top_k, tenant=tenant
         )
         return Response(200, {"contexts": [context_json(c) for c in contexts]})
 
@@ -297,9 +313,12 @@ class App:
             raise HTTPError(413, f"Body exceeds {self.config.max_body_bytes} bytes")
         req = self._parse(body)
         groups = self._groups(key, req.groups)
+        tenant = self._tenant(key, req.tenant)
         if key is not None:
-            logger.info("%s %s by %s (groups=%s)", method, path, key.name, groups)
-        return self._query(req, groups) if path == "/query" else self._retrieve(req, groups)
+            logger.info("%s %s by %s (groups=%s tenant=%s)", method, path, key.name, groups, tenant)
+        if path == "/query":
+            return self._query(req, groups, tenant)
+        return self._retrieve(req, groups, tenant)
 
 
 # ----------------------------------------------------------------------- ASGI

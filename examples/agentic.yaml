@@ -1,0 +1,14 @@
+# Offline example: agentic retrieval. Multi-part questions become several searches.
+# With a real LLM generator, the planner decides each follow-up search itself.
+#   ragpick ingest -c examples/agentic.yaml
+#   ragpick query "How do I reset my password and how much does Lumen Plus cost?" -c examples/agentic.yaml --trace
+version: 1
+name: agentic
+blueprint: agentic
+data: data
+index_dir: .ragpick/agentic
+requirements:
+  complex_questions: true
+components:
+  retriever:
+    params: {base: hybrid, max_steps: 4, per_search_k: 4}

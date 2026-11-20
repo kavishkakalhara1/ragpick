@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-20
+
+### Added
+
+- GraphRAG global search: entity communities (deterministic label propagation) are
+  summarised at ingest (LLM, or a template offline) and reused while unchanged;
+  "main themes / overview / summarise" questions are answered from community summaries
+  (`mode: auto | local | global`). A summary is shown only when the caller can see every
+  chunk it was built from.
+- `agentic` blueprint (stable): an LLM planner runs follow-up searches (up to `max_steps`)
+  and fuses all results; offline, multi-part questions are split into sub-searches.
+  Works over `hybrid`, `vector`, `parent_child` or `graph`. `requirements.complex_questions`.
+- Per-tenant indexes: `tenancy: {enabled: true}` isolates each tenant's index under
+  `<index_dir>/tenants/<id>` (LRU-loaded, models and cache shared); `tenant=` on
+  `ingest`/`query`/`retrieve`/`stream`, `--tenant` in the CLI, `"tenant"` in HTTP requests,
+  and API keys bound to a tenant (`serve.api_keys[].tenant`). `requirements.multi_tenant`.
+- `corrective` can use `base: graph`; wrapper retrievers forward chunk indexing to
+  their base. `multimodal` added to the roadmap as a planned blueprint.
+
+### Fixed
+
+- Selector rule texts with literal braces are now escaped (and every rule's text is tested).
+
 ## [0.5.0] - 2026-11-20
 
 ### Added
@@ -128,7 +151,8 @@ All notable changes to this project are documented here. The format follows
   relevance, latency percentiles, tokens and estimated cost; JSON/CSV output.
 - CLI: `init`, `recommend`, `blueprints`, `ingest`, `query`, `eval`, `validate`.
 
-[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.2.0...v0.3.0

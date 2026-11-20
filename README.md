@@ -123,8 +123,9 @@ allowed_groups: [support]
 | `hybrid` | ✅ stable | **default for commercial systems**; keyword-heavy domains (BM25 + vector + RRF, optional cross-encoder) |
 | `parent_child` | ✅ stable | long structured documents: search small chunks, answer from whole sections |
 | `sql` | ✅ stable | structured data (CSV, SQLite, PostgreSQL): read-only text-to-SQL with table-level access control |
-| `graph` | ✅ stable | multi-hop questions: knowledge graph + hybrid search (GraphRAG local search) |
-| `agentic` | 🗺 planned | multi-step questions and tool use |
+| `graph` | ✅ stable | multi-hop and "main themes" questions: knowledge graph + community summaries (GraphRAG) |
+| `agentic` | ✅ stable | multi-part and comparison questions: plans several searches, fuses the results |
+| `multimodal` | 🗺 planned | images, charts and scanned pages inside documents |
 | `corrective` | ✅ stable | grades retrieval, retries, and says "I don't know" instead of guessing |
 
 ## CLI
@@ -181,6 +182,9 @@ curl -s localhost:8000/query -H "Authorization: Bearer $PORTAL_KEY" \
 Answers can stream token by token: `ragpick query "…" --stream`, `pipeline.stream(...)`,
 or `POST /query {"stream": true}` (server-sent events).
 
+Serving many customers? `tenancy: {enabled: true}` gives every tenant an isolated
+index, and API keys can be bound to a tenant. See [docs/tenancy.md](docs/tenancy.md).
+
 See [docs/routing.md](docs/routing.md) and [docs/serving.md](docs/serving.md).
 
 ## Tracing and caching
@@ -229,6 +233,7 @@ See [docs/adapters.md](docs/adapters.md).
 [Concepts](docs/concepts.md) · [Blueprints](docs/blueprints.md) ·
 [Config reference](docs/config-reference.md) · [Writing a plugin](docs/plugins.md) ·
 [Evaluation](docs/evaluation.md) · [Routing](docs/routing.md) · [Serving](docs/serving.md) ·
+[Multi-tenancy](docs/tenancy.md) ·
 [Tracing & caching](docs/operations.md) ·
 [LangChain & LlamaIndex](docs/adapters.md) ·
 [Design decisions](docs/decisions.md)
@@ -241,9 +246,11 @@ See [docs/adapters.md](docs/adapters.md).
   OpenTelemetry trace exporter
 - **v0.5** ✅: `graph` blueprint (GraphRAG local search), streaming answers, PostgreSQL
   backend for `sql`
-- **v0.6**: GraphRAG global search (community summaries), `agentic` blueprint,
+- **v0.6** ✅: GraphRAG global search (community summaries), `agentic` blueprint,
   per-tenant indexes
-- **Later**: TypeScript SDK, more vector stores (pgvector, Chroma, LanceDB)
+- **v0.7**: `multimodal` blueprint, pgvector store, evaluation datasets generated from
+  your documents
+- **Later**: TypeScript SDK, more vector stores (Chroma, LanceDB)
 
 ## Contributing
 

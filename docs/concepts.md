@@ -12,7 +12,7 @@ A pipeline is made of small, swappable components. Each one is a `typing.Protoco
 | `embedder` | `embed(texts)`, `dimension` (optional `embed_query`) | `fake`, `openai`, `sentence_transformers`, `langchain`, `llamaindex` |
 | `store` | `add`, `search`, `delete`, `persist`, `load` | `memory`, `qdrant` |
 | `keyword_index` | `add`, `search`, `persist`, `load` | `bm25` |
-| `retriever` | `retrieve(query, k, filters)` | `vector`, `keyword`, `hybrid`, `parent_child`, `corrective`, `graph`, `sql`, `langchain`, `llamaindex` |
+| `retriever` | `retrieve(query, k, filters)` | `vector`, `keyword`, `hybrid`, `parent_child`, `corrective`, `graph`, `agentic`, `sql`, `langchain`, `llamaindex` |
 | `reranker` | `rerank(query, chunks, top_n)` | `none`, `cross_encoder` |
 | `generator` | `generate(query, contexts) -> Answer` (optional `stream`) | `fake`, `openai`, `ollama`, `langchain`, `llamaindex` |
 
@@ -68,6 +68,8 @@ merged result with `ragpick validate`.
 | Situation | Effect |
 |---|---|
 | `multi_hop` (facts spread across documents) | `graph` |
+| `complex_questions` (multi-part, comparisons) | `agentic` |
+| `multi_tenant` | reason: enable `tenancy` (see [Multi-tenancy](tenancy.md)) |
 | long, structured documents | `parent_child` |
 | small corpus, not keyword-heavy | `naive` |
 | keyword-heavy, or medium/large corpus | `hybrid` |

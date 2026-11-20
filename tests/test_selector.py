@@ -20,6 +20,17 @@ def test_rule_ids_are_unique() -> None:
     assert len(ids) == len(set(ids))
 
 
+def test_every_rule_text_formats() -> None:
+    """Rule texts go through str.format: literal braces must be escaped."""
+    from ragpick.selector.rules import SelectionContext
+
+    ctx = SelectionContext(requirements=Requirements(data_types=["csv", "html"]))
+    for rule in RULES:
+        for text in (rule.reason, rule.warning):
+            if text:
+                ctx.fmt(text)  # raises KeyError/IndexError on unescaped braces
+
+
 def test_defaults_choose_naive() -> None:
     r = rec()
     assert r.blueprint == "naive"
@@ -188,7 +199,7 @@ def test_default_installed_check_runs() -> None:
 def test_custom_rule_table() -> None:
     table = [
         Rule(id="always", when=lambda c: True, blueprint="hybrid", reason="custom", priority=1),
-        Rule(id="planned", when=lambda c: True, blueprint="agentic", priority=2),
+        Rule(id="planned", when=lambda c: True, blueprint="multimodal", priority=2),
     ]
     r = recommend({}, rules=table)
     assert r.blueprint == "naive"  # graph is planned and has no fallback -> naive

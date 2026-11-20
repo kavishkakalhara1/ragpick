@@ -76,6 +76,8 @@ def test_build_base_retriever() -> None:
     assert isinstance(build_base_retriever("vector", emb, store, kw, 3), VectorRetriever)
     assert isinstance(build_base_retriever("parent_child", emb, store, kw, 3), ParentChildRetriever)
     with pytest.raises(ConfigError, match="Unknown base retriever"):
+        build_base_retriever("magic", emb, store, kw, 3)
+    with pytest.raises(ConfigError, match="needs the pipeline's generator"):
         build_base_retriever("graph", emb, store, kw, 3)
 
 

@@ -62,6 +62,13 @@ class Requirements(_Strict):
         False,
         description="Documents are long and structured (manuals, policies, contracts).",
     )
+    complex_questions: bool = Field(
+        False,
+        description="Questions need several lookups (comparisons, multi-part questions).",
+    )
+    multi_tenant: bool = Field(
+        False, description="Several customers' data must be kept in separate indexes."
+    )
     multi_hop: bool = Field(
         False, description="Questions connect facts spread across several documents."
     )
@@ -138,6 +145,15 @@ class CacheConfig(_Strict):
     ttl_seconds: float | None = Field(None, gt=0, description="Expire entries after this age.")
 
 
+class TenancyConfig(_Strict):
+    """Per-tenant indexes within one pipeline."""
+
+    enabled: bool = Field(
+        False, description="Each tenant gets an isolated index under `<index_dir>/tenants/<id>`."
+    )
+    max_loaded: int = Field(32, ge=1, description="Tenant indexes kept in memory (LRU).")
+
+
 class ApiKeySpec(_Strict):
     """An API key for `ragpick serve` and the groups its holder may act as."""
 
@@ -146,6 +162,9 @@ class ApiKeySpec(_Strict):
     groups: list[str] | None = Field(
         None,
         description="Groups this key may query as (`null` = any groups the request names).",
+    )
+    tenant: str | None = Field(
+        None, description="Bind the key to one tenant (`null` = the request picks the tenant)."
     )
 
 
@@ -185,6 +204,7 @@ class RagConfig(_Strict):
     tracing: TracingConfig = Field(default_factory=TracingConfig, description="Query tracing.")
     cache: CacheConfig = Field(default_factory=CacheConfig, description="Caching.")
     serve: ServeConfig = Field(default_factory=ServeConfig, description="HTTP API settings.")
+    tenancy: TenancyConfig = Field(default_factory=TenancyConfig, description="Multi-tenancy.")
     index_dir: str = Field(".ragpick/index", description="Where indexes are persisted.")
 
     _base_dir: Path = PrivateAttr(default_factory=Path.cwd)

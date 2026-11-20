@@ -30,6 +30,7 @@ from ragpick.config import (
     RouterSpec,
     RouteSpec,
     ServeConfig,
+    TenancyConfig,
     TracingConfig,
 )
 
@@ -45,6 +46,7 @@ SECTIONS: list[tuple[str, type[BaseModel]]] = [
     ("`tracing`", TracingConfig),
     ("`cache`", CacheConfig),
     ("`serve`", ServeConfig),
+    ("`tenancy`", TenancyConfig),
     ("API key (each entry of `serve.api_keys`)", ApiKeySpec),
     ("Router config (top level of a router file)", RouterConfig),
     ("`router`", RouterSpec),

@@ -20,12 +20,14 @@ from __future__ import annotations
 import json
 import logging
 import re
+from pathlib import Path
 from typing import Any
 
 from ragpick.components.keyword import tokenize
 from ragpick.components.retrievers import HybridRetriever, ParentChildRetriever, VectorRetriever
 from ragpick.errors import ConfigError
 from ragpick.interfaces import (
+    ChunkIndexer,
     Embedder,
     Generator,
     KeywordIndex,
@@ -33,7 +35,7 @@ from ragpick.interfaces import (
     TextCompleter,
     VectorStore,
 )
-from ragpick.models import RetrievedChunk
+from ragpick.models import Chunk, RetrievedChunk
 from ragpick.registry import register
 from ragpick.tracing import set_attributes, span
 
@@ -99,8 +101,10 @@ def build_base_retriever(
     k: int,
     rrf_k: int = 60,
     child_k: int | None = None,
+    generator: Generator | None = None,
+    index_dir: Path | None = None,
 ) -> Retriever:
-    """Construct a named base retriever (``hybrid``, ``vector`` or ``parent_child``)."""
+    """Construct a named base retriever: ``hybrid``, ``vector``, ``parent_child`` or ``graph``."""
     if base == "hybrid":
         return HybridRetriever(embedder, store, keyword_index, k=k, rrf_k=rrf_k)
     if base == "vector":
@@ -109,7 +113,15 @@ def build_base_retriever(
         return ParentChildRetriever(
             embedder, store, keyword_index, k=k, child_k=child_k, rrf_k=rrf_k
         )
-    raise ConfigError(f"Unknown base retriever '{base}': use hybrid, vector or parent_child")
+    if base == "graph":
+        if generator is None or index_dir is None:
+            raise ConfigError("base: graph needs the pipeline's generator and index_dir")
+        from ragpick.components.graph import GraphRetriever
+
+        return GraphRetriever(
+            embedder, store, keyword_index, generator, index_dir, k=k, rrf_k=rrf_k
+        )
+    raise ConfigError(f"Unknown base retriever '{base}': use hybrid, vector, parent_child or graph")
 
 
 @register("retriever", "corrective")
@@ -133,6 +145,7 @@ class CorrectiveRetriever:
         store: VectorStore,
         keyword_index: KeywordIndex,
         generator: Generator,
+        index_dir: Path | None = None,
         k: int = 5,
         base: str = "hybrid",
         grader: str = "auto",
@@ -155,12 +168,19 @@ class CorrectiveRetriever:
             )
         self.mode = "llm" if grader == "llm" or (grader == "auto" and llm_ok) else "lexical"
         self.llm: TextCompleter | None = generator if self.mode == "llm" else None  # type: ignore[assignment]
-        self.base = build_base_retriever(base, embedder, store, keyword_index, k, rrf_k, child_k)
+        self.base = build_base_retriever(
+            base, embedder, store, keyword_index, k, rrf_k, child_k, generator, index_dir
+        )
         self.k = k
         self.min_relevant = min_relevant
         self.threshold = threshold
         self.rewrite_enabled = rewrite
         self.on_failure = on_failure
+
+    def index_chunks(self, chunks: list[Chunk]) -> None:
+        """Forward ingest-time chunk indexing to the base retriever (e.g. ``graph``)."""
+        if isinstance(self.base, ChunkIndexer):
+            self.base.index_chunks(chunks)
 
     # -------------------------------------------------------------- grading
     def grade(self, question: str, results: list[RetrievedChunk]) -> list[RetrievedChunk]:

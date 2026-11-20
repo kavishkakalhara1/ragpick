@@ -1,10 +1,27 @@
 metadata:
   name: agentic
   description: >-
-    An agent plans, chooses among retrieval tools, and iterates until it can
-    answer.
+    An LLM plans and runs several searches (sub-questions, follow-ups) before
+    answering, then fuses everything it found. Offline, multi-part questions are
+    split into separate searches.
   best_for:
-    - complex questions that need several lookups or tools
+    - comparisons and multi-part questions ("A vs B", "X and Y")
+    - questions that need a follow-up lookup after the first result
   tradeoffs:
-    - unpredictable latency and cost; harder to evaluate
-  status: planned
+    - one planning LLM call per extra search; latency grows with max_steps
+    - harder to predict and evaluate than single-shot retrieval (use --trace and bench)
+  status: stable
+defaults:
+  components:
+    loader: {type: directory, params: {glob: "**/*"}}
+    chunker: {type: recursive, params: {chunk_size: 800, overlap: 100}}
+    embedder: {type: fake, params: {dimension: 256}}
+    store: {type: memory}
+    keyword_index: {type: bm25, params: {k1: 1.5, b: 0.75}}
+    retriever:
+      type: agentic
+      params: {k: 5, base: hybrid, max_steps: 4, per_search_k: 4, planner: auto}
+    reranker: {type: none}
+    generator: {type: fake}
+  query:
+    top_k: 5

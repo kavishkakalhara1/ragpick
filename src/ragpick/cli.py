@@ -178,6 +178,8 @@ def _ask_requirements() -> Requirements:
     keyword = _confirm("Do queries use exact terms (product codes, IDs, legal terms)?", False)
     long_docs = _confirm("Are documents long and structured (manuals, policies, contracts)?", False)
     multi_hop = _confirm("Do questions connect facts across several documents?", False)
+    complex_q = _confirm("Are questions often multi-part or comparisons (A vs B)?", False)
+    tenants = _confirm("Must several customers' data be kept separate (multi-tenant)?", False)
     strict = _confirm('Is a wrong answer worse than "I don\'t know"?', False)
     latency = _ask("Latency requirement", "normal", ["low", "normal"])
     citations = _confirm("Must answers cite their sources?", True)
@@ -189,6 +191,8 @@ def _ask_requirements() -> Requirements:
             "keyword_heavy": keyword,
             "long_documents": long_docs,
             "multi_hop": multi_hop,
+            "complex_questions": complex_q,
+            "multi_tenant": tenants,
             "strict_grounding": strict,
             "latency": latency,
             "needs_citations": citations,
@@ -210,6 +214,8 @@ def _render_config(
         "query": {"top_k": 5},
         "index_dir": ".ragpick/index",
     }
+    if requirements.multi_tenant:
+        data["tenancy"] = {"enabled": True}
     header = (
         "# ragpick pipeline config. Docs: https://kavishkakalhara1.github.io/ragpick/config-reference/\n"
         f"# Components not listed here come from the '{blueprint}' blueprint.\n"
@@ -330,11 +336,14 @@ def ingest(
         Path | None, typer.Argument(help="File or directory to ingest (default: config `data`).")
     ] = None,
     config: ConfigOpt = DEFAULT_CONFIG,
+    tenant: Annotated[str | None, typer.Option(help="Tenant to ingest for (multi-tenant).")] = None,
     set_: SetOpt = None,
 ) -> None:
     """Load, chunk, embed, index and persist documents (every route, for a router)."""
     engine = load_engine(config, _overrides(set_))
     if isinstance(engine, Router):
+        if tenant is not None:
+            raise RagpickError("Routers can't ingest per tenant; ingest each route config")
         if path is not None:
             raise RagpickError("A router ingests each route's own `data`; run without PATH")
         for route_name, route_stats in engine.ingest().items():
@@ -357,7 +366,7 @@ def ingest(
         def on_progress(stage: str, done: int, total: int) -> None:
             progress.update(task, completed=done, total=total)
 
-        stats = pipeline.ingest(path, progress=on_progress)
+        stats = pipeline.ingest(path, progress=on_progress, tenant=tenant)
     console.print(
         f"[green]✓[/] Ingested {stats.documents} documents → {stats.chunks} chunks "
         f"in {stats.seconds:.1f}s (index: {stats.index_dir})"
@@ -387,6 +396,7 @@ def query(
     stream: Annotated[
         bool, typer.Option("--stream", help="Print the answer as it is generated.")
     ] = False,
+    tenant: Annotated[str | None, typer.Option(help="Tenant to query (multi-tenant).")] = None,
     set_: SetOpt = None,
 ) -> None:
     """Answer a question from the index (or the routes of a router config)."""
@@ -395,7 +405,8 @@ def query(
         if trace:
             raise RagpickError("--stream and --trace can't be combined")
         final = None
-        for event in engine.stream(question, groups=_split_groups(groups), top_k=top_k):
+        events = engine.stream(question, groups=_split_groups(groups), top_k=top_k, tenant=tenant)
+        for event in events:
             if event.type == "delta":
                 console.print(event.text, end="", markup=False, highlight=False, soft_wrap=True)
             elif event.type == "answer":
@@ -408,7 +419,11 @@ def query(
                 console.print("[bold]Citations:[/] " + ", ".join(final.citations), highlight=False)
         return
     answer = engine.query(
-        question, groups=_split_groups(groups), top_k=top_k, trace=True if trace else None
+        question,
+        groups=_split_groups(groups),
+        top_k=top_k,
+        trace=True if trace else None,
+        tenant=tenant,
     )
     title = f"Answer · route: {answer.route}" if answer.route else "Answer"
     console.print(Panel(Text(answer.text), title=title, expand=False))

@@ -30,6 +30,7 @@ nav:
   - Evaluation: evaluation.md
   - Routing: routing.md
   - Serving: serving.md
+  - Multi-tenancy: tenancy.md
   - Tracing & caching: operations.md
   - LangChain & LlamaIndex: adapters.md
   - Design decisions: decisions.md

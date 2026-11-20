@@ -49,5 +49,9 @@ class IndexNotFoundError(RagpickError):
     """A query was issued before anything was ingested."""
 
 
+class TenantError(RagpickError):
+    """A tenant id is missing, invalid, or given to a pipeline without tenancy."""
+
+
 class ProviderError(RagpickError):
     """A remote model provider returned an error or an unexpected response."""

@@ -74,6 +74,11 @@ serve:
   interface without keys.
 - Keep keys in environment variables (`${PORTAL_KEY}`); they are never written to disk.
 
+## Tenants
+
+With `tenancy` enabled, requests carry `"tenant": "acme"`, or the API key fixes it
+(`api_keys[].tenant`); see [Multi-tenancy](tenancy.md).
+
 ## Operations
 
 - Traces in responses are off unless `serve.allow_traces: true`. Server-side tracing

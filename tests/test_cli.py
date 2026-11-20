@@ -65,7 +65,7 @@ def test_init_refuses_overwrite_and_validates(workdir: Path) -> None:
     code, out = run("init", "--yes")
     assert code == 1
     assert "already exists" in out
-    code, out = run("init", "--yes", "--force", "--blueprint", "agentic")
+    code, out = run("init", "--yes", "--force", "--blueprint", "multimodal")
     assert code == 1
     assert "planned" in out
     code, out = run("init", "--yes", "--force", "--provider", "nope")
@@ -103,6 +103,8 @@ def test_init_interactive(workdir: Path) -> None:
             "y",  # keyword heavy
             "n",  # long documents
             "n",  # multi-hop
+            "n",  # complex questions
+            "y",  # multi-tenant
             "n",  # strict grounding
             "low",  # latency
             "y",  # citations
@@ -121,6 +123,8 @@ def test_init_interactive(workdir: Path) -> None:
     assert config["requirements"]["corpus_size"] == "medium"
     assert config["requirements"]["access_control"] is True
     assert config["components"]["reranker"] == {"type": "none"}  # low latency override
+    assert config["tenancy"] == {"enabled": True}
+    assert config["requirements"]["multi_tenant"] is True
 
 
 def test_recommend(workdir: Path) -> None:

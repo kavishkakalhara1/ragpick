@@ -24,6 +24,7 @@ Top-level schema of ``rag.yaml``.
 | `tracing` | TracingConfig | see section | Query tracing. |
 | `cache` | CacheConfig | see section | Caching. |
 | `serve` | ServeConfig | see section | HTTP API settings. |
+| `tenancy` | TenancyConfig | see section | Multi-tenancy. |
 | `index_dir` | str | `'.ragpick/index'` | Where indexes are persisted. |
 
 ## `requirements`
@@ -36,6 +37,8 @@ What the application needs. Used by the selector (`ragpick recommend`).
 | `corpus_size` | `small` \| `medium` \| `large` | `'small'` | small (<1k chunks), medium, or large (>100k chunks). |
 | `keyword_heavy` | bool | `False` | Queries rely on exact terms: product codes, legal terms, IDs. |
 | `long_documents` | bool | `False` | Documents are long and structured (manuals, policies, contracts). |
+| `complex_questions` | bool | `False` | Questions need several lookups (comparisons, multi-part questions). |
+| `multi_tenant` | bool | `False` | Several customers' data must be kept in separate indexes. |
 | `multi_hop` | bool | `False` | Questions connect facts spread across several documents. |
 | `strict_grounding` | bool | `False` | Wrong answers are costly: prefer "I don't know" over guessing. |
 | `latency` | `low` \| `normal` | `'normal'` | `low` disables expensive stages. |
@@ -126,6 +129,15 @@ HTTP API settings for `ragpick serve`.
 | `cors_origins` | list[str] | `[]` | Origins allowed by CORS (`*` for any). |
 | `allow_traces` | bool | `False` | Let clients request traces in responses. |
 
+## `tenancy`
+
+Per-tenant indexes within one pipeline.
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | `False` | Each tenant gets an isolated index under `<index_dir>/tenants/<id>`. |
+| `max_loaded` | int | `32` | Tenant indexes kept in memory (LRU). |
+
 ## API key (each entry of `serve.api_keys`)
 
 An API key for `ragpick serve` and the groups its holder may act as.
@@ -135,6 +147,7 @@ An API key for `ragpick serve` and the groups its holder may act as.
 | `key` | str | **required** | The secret; use `${ENV_VAR}` interpolation. |
 | `name` | str | `'client'` | Label used in logs. |
 | `groups` | list[str] \| null | `None` | Groups this key may query as (`null` = any groups the request names). |
+| `tenant` | str \| null | `None` | Bind the key to one tenant (`null` = the request picks the tenant). |
 
 ## Router config (top level of a router file)
 
