@@ -30,6 +30,20 @@ STRUCTURED_TYPES = frozenset(
     {"sql", "sqlite", "csv", "database", "structured", "tables", "spreadsheet"}
 )
 DOCUMENT_TYPES = frozenset({"markdown", "md", "text", "txt", "pdf"})
+IMAGE_TYPES = frozenset(
+    {
+        "image",
+        "images",
+        "png",
+        "jpg",
+        "jpeg",
+        "diagrams",
+        "screenshots",
+        "scanned",
+        "charts",
+        "slides",
+    }
+)
 FILTERING_STORES_HINT = "memory, qdrant"
 
 
@@ -56,7 +70,9 @@ class SelectionContext:
             **req.model_dump(),
             store=self.store,
             structured=", ".join(sorted(self.data_types & STRUCTURED_TYPES)),
-            unknown=", ".join(sorted(self.data_types - STRUCTURED_TYPES - DOCUMENT_TYPES)),
+            unknown=", ".join(
+                sorted(self.data_types - STRUCTURED_TYPES - DOCUMENT_TYPES - IMAGE_TYPES)
+            ),
             filtering_stores=FILTERING_STORES_HINT,
         )
 
@@ -105,6 +121,21 @@ RULES: list[Rule] = [
             "Structured data ({structured}) is best answered with text-to-SQL: aggregations "
             "and filters over rows are not a retrieval problem. The query runs read-only, "
             "with a timeout and a row cap."
+        ),
+        alternatives=("hybrid",),
+    ),
+    Rule(
+        id="images",
+        when=lambda c: bool(c.data_types & IMAGE_TYPES),
+        blueprint="multimodal",
+        priority=80,
+        reason=(
+            "Images (diagrams, screenshots, scans) hold answers text search can't see: the "
+            "multimodal loader describes every image at ingest so it is retrieved with the text."
+        ),
+        warning=(
+            "Image descriptions need a vision-capable generator (openai, or ollama with a "
+            "vision model); offline, only file names, alt text and captions are indexed."
         ),
         alternatives=("hybrid",),
     ),
@@ -321,7 +352,7 @@ RULES: list[Rule] = [
     ),
     Rule(
         id="unknown_data_types",
-        when=lambda c: bool(c.data_types - STRUCTURED_TYPES - DOCUMENT_TYPES),
+        when=lambda c: bool(c.data_types - STRUCTURED_TYPES - DOCUMENT_TYPES - IMAGE_TYPES),
         warning=(
             "No built-in loader for: {unknown}. Built-in loaders handle markdown, text and "
             "pdf; convert the files or register a custom loader plugin."

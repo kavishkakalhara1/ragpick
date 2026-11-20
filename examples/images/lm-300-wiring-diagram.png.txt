@@ -1,0 +1,2 @@
+Wiring diagram for the LM-300 Pro: R (red) to 24V power, C (blue) common wire,
+W1 (white) to heat, Y1 (yellow) to cooling, G (green) to the fan. The C-wire is required.

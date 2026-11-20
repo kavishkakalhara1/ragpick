@@ -9,8 +9,10 @@ from ragpick.errors import BlueprintError
 
 def test_list_blueprints_roadmap_order() -> None:
     names = [bp.name for bp in list_blueprints()]
-    stable = ["naive", "hybrid", "parent_child", "corrective", "graph", "agentic", "sql"]
-    assert names == [*stable, "multimodal"]
+    stable = [
+        "naive", "hybrid", "parent_child", "corrective", "graph", "agentic", "multimodal", "sql"
+    ]  # fmt: skip
+    assert names == [*stable, "conversational"]
     assert [bp.name for bp in list_blueprints(include_planned=False)] == stable
     assert get_blueprint("sql").metadata.data == "structured"
     assert get_blueprint("corrective").metadata.data == "documents"

@@ -52,6 +52,12 @@ ragpick recommend --config examples/hybrid.yaml
 ragpick eval examples/eval.jsonl --config examples/naive.yaml --config examples/hybrid.yaml
 ```
 
+No questions yet? Generate a starter set from your documents (then review it):
+
+```bash
+ragpick generate-eval examples/data -o my-eval.jsonl --count 20
+```
+
 Or let `ragpick bench` try every stable blueprint on your data and pick the winner:
 
 ```bash
@@ -125,7 +131,8 @@ allowed_groups: [support]
 | `sql` | ✅ stable | structured data (CSV, SQLite, PostgreSQL): read-only text-to-SQL with table-level access control |
 | `graph` | ✅ stable | multi-hop and "main themes" questions: knowledge graph + community summaries (GraphRAG) |
 | `agentic` | ✅ stable | multi-part and comparison questions: plans several searches, fuses the results |
-| `multimodal` | 🗺 planned | images, charts and scanned pages inside documents |
+| `multimodal` | ✅ stable | images, diagrams and scanned pages: described at ingest (vision LLM or offline), searched with the text |
+| `conversational` | 🗺 planned | multi-turn assistants: rewrite follow-ups using chat history |
 | `corrective` | ✅ stable | grades retrieval, retries, and says "I don't know" instead of guessing |
 
 ## CLI
@@ -139,6 +146,7 @@ allowed_groups: [support]
 | `ragpick query "…"` | answer with citations (`--groups`, `--show-contexts`, `--trace`, `--stream`) |
 | `ragpick eval DATASET -c a.yaml -c b.yaml` | comparison table (`--output results.json/.csv`) |
 | `ragpick bench DATASET --data DOCS` | try every stable blueprint, pick the winner (`--write rag.yaml`) |
+| `ragpick generate-eval DOCS` | generate evaluation questions + answers from your documents |
 | `ragpick validate` | print the merged config (secrets masked) |
 | `ragpick cache stats` / `clear` | inspect or clear the embedding/LLM cache |
 | `ragpick serve` | JSON HTTP API with API keys mapped to groups |
@@ -150,7 +158,7 @@ allowed_groups: [support]
 | `openai` | OpenAI embeddings and chat models (and OpenAI-compatible servers) |
 | `local` | sentence-transformers embeddings |
 | `rerank` | cross-encoder reranker |
-| `qdrant` | Qdrant vector store |
+| `qdrant` | Qdrant vector store (pgvector works with `pip install "psycopg[binary]"`) |
 | `pdf` | PDF loader |
 | `all` | everything above |
 
@@ -248,9 +256,11 @@ See [docs/adapters.md](docs/adapters.md).
   backend for `sql`
 - **v0.6** ✅: GraphRAG global search (community summaries), `agentic` blueprint,
   per-tenant indexes
-- **v0.7**: `multimodal` blueprint, pgvector store, evaluation datasets generated from
+- **v0.7** ✅: `multimodal` blueprint, pgvector store, evaluation datasets generated from
   your documents
-- **Later**: TypeScript SDK, more vector stores (Chroma, LanceDB)
+- **v0.8**: `conversational` blueprint (chat history, follow-up rewriting), Chroma and
+  LanceDB stores, CI-friendly `ragpick eval --fail-under`
+- **Later**: TypeScript SDK
 
 ## Contributing
 

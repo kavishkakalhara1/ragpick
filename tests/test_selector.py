@@ -199,7 +199,7 @@ def test_default_installed_check_runs() -> None:
 def test_custom_rule_table() -> None:
     table = [
         Rule(id="always", when=lambda c: True, blueprint="hybrid", reason="custom", priority=1),
-        Rule(id="planned", when=lambda c: True, blueprint="multimodal", priority=2),
+        Rule(id="planned", when=lambda c: True, blueprint="conversational", priority=2),
     ]
     r = recommend({}, rules=table)
     assert r.blueprint == "naive"  # graph is planned and has no fallback -> naive

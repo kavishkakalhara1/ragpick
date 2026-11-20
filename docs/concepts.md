@@ -7,10 +7,10 @@ A pipeline is made of small, swappable components. Each one is a `typing.Protoco
 
 | Kind | Protocol | Built-in types |
 |---|---|---|
-| `loader` | `load(path) -> Iterable[Document]` | `directory`, `text`, `pdf`, `csv`, `langchain`, `llamaindex` |
+| `loader` | `load(path) -> Iterable[Document]` | `directory`, `text`, `pdf`, `csv`, `multimodal`, `langchain`, `llamaindex` |
 | `chunker` | `split(docs) -> list[Chunk]` | `recursive`, `fixed`, `parent_child`, `none` |
 | `embedder` | `embed(texts)`, `dimension` (optional `embed_query`) | `fake`, `openai`, `sentence_transformers`, `langchain`, `llamaindex` |
-| `store` | `add`, `search`, `delete`, `persist`, `load` | `memory`, `qdrant` |
+| `store` | `add`, `search`, `delete`, `persist`, `load` | `memory`, `qdrant`, `pgvector` |
 | `keyword_index` | `add`, `search`, `persist`, `load` | `bm25` |
 | `retriever` | `retrieve(query, k, filters)` | `vector`, `keyword`, `hybrid`, `parent_child`, `corrective`, `graph`, `agentic`, `sql`, `langchain`, `llamaindex` |
 | `reranker` | `rerank(query, chunks, top_n)` | `none`, `cross_encoder` |
@@ -24,7 +24,8 @@ Data flows through these models: `Document` → `Chunk` → `RetrievedChunk` →
 **Query:** retriever (with ACL filters) → reranker → generator → `Answer`.
 
 Components receive `embedder`, `store`, `keyword_index`, `generator` and `index_dir` by
-constructor parameter name. A component that implements `index_documents(docs)` also
+constructor parameter name. The generator is built first, so loaders can use it too
+(the multimodal loader describes images with it). A component that implements `index_documents(docs)` also
 receives the raw documents at ingest (the SQL retriever builds its database this way),
 and one that implements `index_chunks(chunks)` receives the chunks (the graph retriever
 builds its knowledge graph this way).
@@ -73,6 +74,7 @@ merged result with `ragpick validate`.
 | long, structured documents | `parent_child` |
 | small corpus, not keyword-heavy | `naive` |
 | keyword-heavy, or medium/large corpus | `hybrid` |
+| images (diagrams, screenshots, scanned, …) | `multimodal` (warns that vision needs a capable LLM) |
 | structured data (csv, sql, sqlite, …) | `sql` (warns about row-level ACL; mixed data → use a [router](routing.md)) |
 | `strict_grounding` (wrong answers are costly) | `corrective` (over `parent_child` for long documents) |
 | `latency: low` | reranker disabled, with a reason |
@@ -85,6 +87,26 @@ your documents and questions; see [Evaluation](evaluation.md#bench-try-every-blu
 
 Every recommendation lists **reasons**, **alternatives** and **warnings**. The rules live
 in `ragpick.selector.rules.RULES` and are easy to extend.
+
+## Vector stores
+
+| Store | Use it for | Notes |
+|---|---|---|
+| `memory` | prototypes, up to a few hundred thousand chunks | exact search, persisted to `index_dir` |
+| `qdrant` | large corpora, a dedicated vector DB | `pip install "ragpick[qdrant]"` |
+| `pgvector` | teams already running PostgreSQL | `pip install "psycopg[binary]"`, the `vector` extension |
+
+```yaml
+components:
+  store:
+    type: pgvector
+    params: {dsn: "${DATABASE_URL}", table: support_chunks, index: hnsw}
+```
+
+`pgvector` creates the table (and an HNSW cosine index) on first insert and evaluates
+ragpick filters, including `allowed_groups`, in SQL over a JSONB `metadata` column, so
+access control happens inside PostgreSQL before ranking. Metadata values are compared
+as text.
 
 ## Access control
 

@@ -66,8 +66,10 @@ Preview the docs with `mkdocs serve`.
 ## Good first issues
 
 - **Loaders**: HTML, DOCX, Notion/Confluence exports, CSV-as-documents.
-- **Stores**: pgvector, Chroma, LanceDB, Elasticsearch/OpenSearch (with filter push-down).
-- **Blueprints**: `multimodal` is next; better community detection (Leiden) for `graph`.
+- **Blueprints**: `conversational` (chat history + follow-up rewriting) is next; better
+  community detection (Leiden) for `graph`.
+- **Stores**: Chroma, LanceDB, Elasticsearch/OpenSearch (with filter push-down).
+- **Multimodal**: CLIP-style image embeddings, OCR for scanned PDFs.
 - **SQL**: MySQL/DuckDB backends for the `sql` retriever (same `SQLBackend` protocol).
 - **Graph**: better offline entity extraction, graph stores (Neo4j) behind `KnowledgeGraph`.
 - **Trace exporters**: Langfuse, Phoenix (OpenTelemetry is built in).

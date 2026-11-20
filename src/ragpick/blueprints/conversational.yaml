@@ -1,0 +1,11 @@
+metadata:
+  name: conversational
+  description: >-
+    Multi-turn assistants: rewrite each follow-up ("and how much is it?") into a
+    standalone question using the chat history before retrieving, and keep
+    per-session memory.
+  best_for:
+    - chat assistants and support bots with follow-up questions
+  tradeoffs:
+    - an extra LLM call per turn to rewrite the question
+  status: planned

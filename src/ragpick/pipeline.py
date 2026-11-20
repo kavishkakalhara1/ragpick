@@ -112,6 +112,16 @@ class Pipeline:
             self.cache = Cache(
                 config.resolve_path(config.cache.dir) / "cache.sqlite", config.cache.ttl_seconds
             )
+        # the generator is built first so loaders (vision) and retrievers can use it
+        self.generator: interfaces.Generator = self._build("generator", c.generator)
+        if c.generator.type == "fake" and "generator" not in self._injected:
+            logger.info("Using the fake generator: answers are extractive placeholders")
+        if self.cache is not None and config.cache.generations:
+            fingerprint = {
+                **_fingerprint(c.generator),
+                "prompt": getattr(self.generator, "system_prompt", None),
+            }
+            self.generator = wrap_generator(self.generator, self.cache, fingerprint)
         self.loader: interfaces.Loader = self._build("loader", c.loader)
         self.chunker: interfaces.Chunker = self._build("chunker", c.chunker)
         self.embedder: interfaces.Embedder = self._build("embedder", c.embedder)
@@ -130,15 +140,6 @@ class Pipeline:
             keyword_spec = ComponentSpec(type="bm25")
         if keyword_spec is not None or "keyword_index" in self._injected:
             self.keyword_index = self._build("keyword_index", keyword_spec)
-        self.generator: interfaces.Generator = self._build("generator", c.generator)
-        if c.generator.type == "fake" and "generator" not in self._injected:
-            logger.info("Using the fake generator: answers are extractive placeholders")
-        if self.cache is not None and config.cache.generations:
-            fingerprint = {
-                **_fingerprint(c.generator),
-                "prompt": getattr(self.generator, "system_prompt", None),
-            }
-            self.generator = wrap_generator(self.generator, self.cache, fingerprint)
         self.retriever: interfaces.Retriever = self._build("retriever", c.retriever)
         self.reranker: interfaces.Reranker = self._build("reranker", c.reranker)
         self.exporters: list[Any] = [

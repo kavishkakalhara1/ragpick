@@ -140,6 +140,15 @@ class StreamingGenerator(Protocol):
 
 
 @runtime_checkable
+class VisionCompleter(Protocol):
+    """Optional: a generator that can describe images (vision-capable LLMs)."""
+
+    def describe_image(self, image: bytes, mime: str, prompt: str) -> Completion:
+        """Describe ``image`` (raw bytes of type ``mime``) following ``prompt``."""
+        ...
+
+
+@runtime_checkable
 class ChunkIndexer(Protocol):
     """Optional: a component that indexes chunks itself during ingest (e.g. a graph).
 

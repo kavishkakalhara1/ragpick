@@ -22,6 +22,24 @@ JSON Lines, one question per line. Only `question` is required:
 
 Blank lines and lines starting with `#` or `//` are ignored. Errors name the file and line.
 
+## Generating a dataset
+
+No questions yet? Generate a starter set from your documents:
+
+```bash
+ragpick generate-eval ./docs -o eval.jsonl --count 30 -c rag.yaml
+```
+
+- With a real LLM generator, each sampled chunk becomes a natural question and a short
+  reference answer. Offline (`--mode heuristic`), questions come from section headings
+  ("How do I reset your password?"), codes ("What does E-1042 mean?") and titles.
+- Chunks are sampled round-robin across documents (`--seed` makes it reproducible), using
+  the config's loader and chunker, so `relevant_doc_ids` match what `ingest` produces.
+- Questions from documents with `allowed_groups` get those `groups`, so evaluation runs
+  with the right permissions.
+- **Review the file.** Delete vague questions, fix answers, and add the hard cases your
+  users really ask.
+
 ## Running
 
 ```bash

@@ -1,10 +1,25 @@
 metadata:
   name: multimodal
   description: >-
-    Retrieve and answer over images, charts, scanned pages and tables inside
-    documents, using vision-capable embeddings and LLMs.
+    Make images searchable: diagrams, screenshots, scanned pages and images inside
+    PDFs are described at ingest (by a vision LLM, or from file names, alt text and
+    captions offline) and retrieved together with the text using hybrid search.
   best_for:
-    - manuals with diagrams, scanned forms, slide decks, PDF reports with charts
+    - manuals with diagrams, screenshots and wiring charts
+    - scanned forms, slide exports, PDF reports with charts
   tradeoffs:
-    - vision models are slower and more expensive than text-only pipelines
-  status: planned
+    - one vision call per image at ingest (enable the cache)
+    - offline descriptions only know file names, alt text and captions
+  status: stable
+defaults:
+  components:
+    loader: {type: multimodal, params: {glob: "**/*", describe: auto, pdf_images: true}}
+    chunker: {type: recursive, params: {chunk_size: 800, overlap: 100}}
+    embedder: {type: fake, params: {dimension: 256}}
+    store: {type: memory}
+    keyword_index: {type: bm25, params: {k1: 1.5, b: 0.75}}
+    retriever: {type: hybrid, params: {k: 20, rrf_k: 60}}
+    reranker: {type: none}
+    generator: {type: fake}
+  query:
+    top_k: 5

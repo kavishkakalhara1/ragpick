@@ -8,6 +8,7 @@ only from the numbered context passages, cite them as ``[1]``, and say
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import re
@@ -269,6 +270,31 @@ class OpenAIGenerator(LLMGenerator):
             latency_ms=latency,
         )
 
+    def describe_image(self, image: bytes, mime: str, prompt: str) -> Completion:
+        """Describe an image with a vision-capable model (e.g. gpt-4o-mini)."""
+        url = f"data:{mime};base64,{base64.b64encode(image).decode('ascii')}"
+        start = time.perf_counter()
+        try:
+            response = self._client.chat.completions.create(
+                model=self.model,
+                temperature=self.temperature,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": url}},
+                        ],
+                    }
+                ],
+            )
+        except Exception as exc:  # the SDK raises many exception types
+            raise ProviderError(f"OpenAI image description failed: {exc}") from exc
+        text = response.choices[0].message.content or ""
+        return Completion(
+            text=text, usage=self._usage(response, (time.perf_counter() - start) * 1000)
+        )
+
     def stream_complete(self, system: str, user: str) -> Iterator[str | Usage]:
         """Stream tokens from the chat completions API (with final usage)."""
         kwargs: dict[str, Any] = {
@@ -352,6 +378,29 @@ class OllamaGenerator(LLMGenerator):
             latency_ms=latency,
         )
         return Completion(text=text, usage=usage)
+
+    def describe_image(self, image: bytes, mime: str, prompt: str) -> Completion:
+        """Describe an image with a vision model served by Ollama (e.g. ``llava``)."""
+        payload = {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt,
+                    "images": [base64.b64encode(image).decode("ascii")],
+                }
+            ],
+            "stream": False,
+            "options": {"temperature": self.temperature},
+        }
+        start = time.perf_counter()
+        try:
+            response = self._client.post("/api/chat", json=payload)
+            response.raise_for_status()
+            data = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise ProviderError(f"Ollama image description failed: {exc}") from exc
+        return self._completion(data, (time.perf_counter() - start) * 1000)
 
     def stream_complete(self, system: str, user: str) -> Iterator[str | Usage]:
         """Stream ``/api/chat`` (newline-delimited JSON)."""

@@ -10,7 +10,8 @@ Run `ragpick blueprints` to see this list in your terminal.
 | `sql` | stable | structured data and analytics questions (text-to-SQL) |
 | `graph` | stable | multi-hop and "main themes" questions (GraphRAG local + global search) |
 | `agentic` | stable | multi-part and comparison questions needing several lookups |
-| `multimodal` | planned | images, charts and scanned pages inside documents |
+| `multimodal` | stable | images, diagrams, scans and charts inside documents |
+| `conversational` | planned | multi-turn chat: follow-up rewriting with chat history |
 | `corrective` | stable | noisy corpora, high-stakes answers: grade retrieval, retry, or refuse |
 
 ## naive
@@ -189,6 +190,44 @@ through the base retriever (`hybrid`, `vector`, `parent_child` or `graph`) with 
 filters, so access control holds. `ragpick query --trace` shows each `agent_plan` and
 `agent_search` step. Set `requirements.complex_questions: true` and the selector
 recommends it.
+
+## multimodal
+
+```text
+ingest: text / Markdown / PDF ───────────────────────────────┐
+        images + images inside PDFs → description ───────────┴→ chunk → hybrid index
+        (vision LLM, or file name + alt text + caption offline)
+query:  hybrid search over text and image descriptions → answer cites the image
+```
+
+Diagrams, screenshots, wiring charts and scanned pages often hold exactly the answer,
+and plain text pipelines can't see them. `multimodal` turns every image into a
+description at ingest:
+
+- **With a vision model** (`generator: openai` with `gpt-4o-mini`, or `ollama` with a vision
+  model like `llava`), each image is described, transcribing visible text, labels and
+  numbers. Turn on `cache` so re-ingesting doesn't pay again: descriptions are keyed by
+  image hash.
+- **Offline**, the description comes from the file name, the alt text of every Markdown
+  `![alt](image.png)` reference, and an optional caption file next to the image
+  (`diagram.png.txt` or `diagram.txt`). A caption file may start with front matter
+  (`allowed_groups: [hr]`) to restrict the image.
+- Images inside PDFs are extracted and described too (`pdf_images: true`, needs
+  `ragpick[pdf]`).
+
+Image documents keep `modality: image`, `image_path` and `mime` in their metadata
+(returned by `ragpick serve`), so your UI can show the picture next to the answer.
+
+```yaml
+blueprint: multimodal
+components:
+  loader: {params: {describe: auto, pdf_images: true, max_image_bytes: 20000000}}
+  generator: {type: openai, params: {model: gpt-4o-mini}}
+cache: {enabled: true}
+```
+
+Set `requirements.data_types` to include `diagrams`, `images`, `screenshots`, `scanned`, …
+and the selector recommends it.
 
 ## sql
 

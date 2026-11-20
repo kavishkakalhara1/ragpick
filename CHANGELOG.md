@@ -6,6 +6,32 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-20
+
+### Added
+
+- `multimodal` blueprint (stable): the `multimodal` loader reads text, Markdown, PDFs
+  and images (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`), including images embedded in PDFs,
+  and turns every image into a searchable description: written by a vision LLM
+  (`describe_image` on the OpenAI and Ollama generators), or offline from the file name,
+  Markdown alt text and caption files (which may carry `allowed_groups` front matter).
+  Image documents keep `modality`, `image_path` and `mime` metadata. Descriptions are
+  cached by image hash. Selector: image data types recommend `multimodal`.
+- `pgvector` vector store: PostgreSQL + pgvector with automatic table/HNSW index
+  creation, cosine search, and ragpick filters (including `allowed_groups` access
+  control) translated to SQL over JSONB metadata. Needs `psycopg`; no new extra.
+- `ragpick generate-eval`: generate an evaluation dataset from your documents
+  (LLM-written questions and answers, or offline questions from headings, codes and
+  titles), sampled evenly across documents, with `relevant_doc_ids` and the access
+  `groups` of restricted documents. Python: `ragpick.eval.generate.generate_dataset`.
+- `VisionCompleter` optional protocol. `conversational` added to the roadmap as a planned
+  blueprint.
+
+### Changed
+
+- The generator is built before the loader, so loaders can receive it (dependency
+  injection by parameter name, as for retrievers).
+
 ## [0.6.0] - 2026-11-20
 
 ### Added
@@ -151,7 +177,8 @@ All notable changes to this project are documented here. The format follows
   relevance, latency percentiles, tokens and estimated cost; JSON/CSV output.
 - CLI: `init`, `recommend`, `blueprints`, `ingest`, `query`, `eval`, `validate`.
 
-[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.3.0...v0.4.0

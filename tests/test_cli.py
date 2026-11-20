@@ -65,7 +65,7 @@ def test_init_refuses_overwrite_and_validates(workdir: Path) -> None:
     code, out = run("init", "--yes")
     assert code == 1
     assert "already exists" in out
-    code, out = run("init", "--yes", "--force", "--blueprint", "multimodal")
+    code, out = run("init", "--yes", "--force", "--blueprint", "conversational")
     assert code == 1
     assert "planned" in out
     code, out = run("init", "--yes", "--force", "--provider", "nope")

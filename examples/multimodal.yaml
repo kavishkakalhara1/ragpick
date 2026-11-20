@@ -1,0 +1,14 @@
+# Multimodal example: images become searchable documents.
+# Offline, descriptions come from file names, Markdown alt text and caption files
+# (images/*.png.txt). With a vision model (openai gpt-4o-mini, or ollama llava),
+# each image is described by the model at ingest.
+#   ragpick ingest -c examples/multimodal.yaml
+#   ragpick query "Which wire goes to the fan on the LM-300 Pro?" -c examples/multimodal.yaml --show-contexts
+version: 1
+name: multimodal
+blueprint: multimodal
+data: images
+index_dir: .ragpick/multimodal
+requirements:
+  data_types: [markdown, diagrams]
+cache: {enabled: true}      # image descriptions are cached by image hash

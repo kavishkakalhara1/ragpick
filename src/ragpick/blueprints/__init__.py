@@ -52,8 +52,9 @@ _ORDER = [
     "corrective",
     "graph",
     "agentic",
-    "sql",
     "multimodal",
+    "sql",
+    "conversational",
 ]
 
 

@@ -560,6 +560,58 @@ def eval_cmd(
         console.print(f"[green]✓[/] Wrote {written}")
 
 
+# --------------------------------------------------------------------------- generate-eval
+@app.command(name="generate-eval")
+@friendly
+def generate_eval(
+    path: Annotated[
+        Path | None, typer.Argument(help="Documents to generate from (default: config `data`).")
+    ] = None,
+    config: ConfigOpt = DEFAULT_CONFIG,
+    output: Annotated[Path, typer.Option("--output", "-o", help="JSONL file to write.")] = Path(
+        "eval.jsonl"
+    ),
+    count: Annotated[int, typer.Option(min=1, help="Number of questions.")] = 20,
+    seed: Annotated[int, typer.Option(help="Sampling seed (same seed → same chunks).")] = 0,
+    mode: Annotated[str, typer.Option(help="auto, llm or heuristic.")] = "auto",
+    force: Annotated[bool, typer.Option(help="Overwrite the output file.")] = False,
+    set_: SetOpt = None,
+) -> None:
+    """Generate an evaluation dataset (questions + reference answers) from your documents."""
+    from ragpick.eval.generate import generate_dataset, write_dataset
+
+    if output.exists() and not force:
+        raise RagpickError(f"{output} already exists (use --force to overwrite)")
+    engine = load_engine(config, _overrides(set_))
+    if isinstance(engine, Router):
+        raise RagpickError("Generate a dataset per route config, not for a router")
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        console=console,
+        transient=True,
+    ) as progress:
+        task = progress.add_task("Generating questions", total=count)
+        examples = generate_dataset(
+            engine,
+            path,
+            count=count,
+            seed=seed,
+            mode=mode,
+            progress=lambda done, total: progress.update(task, completed=done),
+        )
+    written = write_dataset(examples, output)
+    restricted = sum(1 for e in examples if e.groups)
+    console.print(
+        f"[green]✓[/] Wrote {len(examples)} questions to {written}"
+        + (f" ({restricted} with access groups)" if restricted else "")
+    )
+    console.print(
+        "  Review them, then: ragpick eval " + escape(str(written)) + " -c " + escape(str(config))
+    )
+
+
 # --------------------------------------------------------------------------- bench
 @app.command()
 @friendly

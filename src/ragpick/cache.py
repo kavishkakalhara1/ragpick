@@ -159,6 +159,7 @@ class CachedGenerator:
     """Wraps a :class:`~ragpick.interfaces.Generator`; identical inputs reuse answers.
 
     A cached answer has ``usage.cached = True`` and zero tokens (it cost nothing).
+    Image descriptions (``describe_image``) are cached by image hash when supported.
     """
 
     def __init__(self, inner: Generator, cache: Cache, fingerprint: Any) -> None:
@@ -167,7 +168,23 @@ class CachedGenerator:
         self.fingerprint = fingerprint
 
     def __getattr__(self, name: str) -> Any:
-        return getattr(self.inner, name)
+        attr = getattr(self.inner, name)  # AttributeError if the inner lacks it
+        if name == "describe_image" and callable(attr):
+            return self._cached_describe(attr)
+        return attr
+
+    def _cached_describe(self, describe: Any) -> Any:
+        def cached(image: bytes, mime: str, prompt: str) -> Completion:
+            digest = hashlib.sha256(image).hexdigest()
+            key = make_key("describe_image", self.fingerprint, [digest, mime, prompt])
+            hit = self.cache.get(key)
+            if hit is not None:
+                return Completion(text=str(hit), usage=Usage(cached=True))
+            completion: Completion = describe(image, mime, prompt)
+            self.cache.set(key, "describe_image", completion.text)
+            return completion
+
+        return cached
 
     def generate(self, query: str, contexts: list[RetrievedChunk]) -> Answer:
         """Return a cached answer or generate (and cache) a new one."""

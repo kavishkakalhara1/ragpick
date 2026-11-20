@@ -225,6 +225,25 @@ interfaces extensible. Each decision is listed here so it can be revisited.
     pipelines reject one (a `TenantError`, HTTP 400). Tenant-bound API keys override and
     restrict the request's tenant (403 on mismatch).
 
+## v0.7
+
+73. **Multimodal = describe-then-index.** Images become text documents at ingest, so
+    every retriever, store, reranker, evaluation and access-control feature works
+    unchanged. Native image embeddings (CLIP-style) can come later as an embedder.
+74. **The generator is built first** and injected into loaders by parameter name, so
+    the multimodal loader reuses the pipeline's (cached) vision model.
+75. **Vision is an optional protocol** (`describe_image`) on the OpenAI and Ollama
+    generators. If a vision call fails, the image keeps its offline description
+    (`description_source: offline-fallback`), so one bad image doesn't abort ingest.
+76. **Offline image descriptions use what authors already wrote**: file names, Markdown
+    alt text and caption files. Caption front matter can restrict images.
+77. **pgvector without the pgvector package**: vectors are sent as text and cast to
+    `vector`; filters become parameterised SQL over JSONB (values compared as text, list
+    metadata matched by array overlap), and the table name must be a plain identifier.
+78. **Generated datasets are a starting point.** Chunks are sampled round-robin across
+    documents for coverage. LLM output that doesn't parse falls back to the heuristic,
+    and restricted documents' groups are copied onto their questions.
+
 ## Tooling
 
 31. **`types-PyYAML` is not a dev dependency** (it wasn't in the approved list), so mypy
