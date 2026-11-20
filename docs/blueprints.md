@@ -13,7 +13,8 @@ Run `ragpick blueprints` to see this list in your terminal.
 | `multimodal` | stable | images, diagrams, scans and charts inside documents |
 | `conversational` | stable | chat assistants with follow-up questions |
 | `hierarchical` | stable | RAPTOR-style summary trees: details and overviews |
-| `long_context` | planned | small corpora with long-context models |
+| `long_context` | stable | small corpora with long-context models: whole documents |
+| `adaptive` | planned | choose the cheapest strategy per question |
 | `corrective` | stable | noisy corpora, high-stakes answers: grade retrieval, retry, or refuse |
 
 ## naive
@@ -269,6 +270,42 @@ cache: {enabled: true}
   `children` and `source_docs`.
 
 Set `requirements.summary_questions: true` and the selector recommends it.
+
+## long_context
+
+```text
+query → hybrid chunk search → score documents (sum of their chunks) → whole documents
+        └─ include_all: every visible document, stable order, if they fit the budget
+```
+
+When the corpus is small and the model reads 100k+ tokens, chunking only throws away
+context. `long_context` returns **whole documents** within `max_context_tokens`
+(about 4 characters per token; a document that doesn't fit is truncated and marked).
+
+```yaml
+blueprint: long_context
+components:
+  retriever:
+    params: {max_docs: 3, max_context_tokens: 100000, include_all: true}
+  generator: {type: openai, params: {model: gpt-4o-mini}}
+query: {top_k: 50}     # let the retriever's token budget decide, not top_k
+```
+
+- **Prompt caching.** With `include_all` and a corpus that fits, every question sends the
+  same documents in the same order (sorted by id), so the long document prefix is
+  identical between questions, which provider-side prompt caching (e.g. OpenAI's automatic
+  caching of long prompt prefixes) can reuse.
+- **Access control** is document-level: only documents whose metadata matches the
+  caller's `allowed_groups` are returned, in both modes.
+- Contexts have ids `doc#full` and `whole_document: true` metadata; citations point at
+  documents.
+- **Evaluating it.** With `include_all`, documents come in id order (that's what makes caching
+  work), so rank metrics like MRR say nothing about it, and `hit_rate@k` is 1.0 by
+  construction. Compare it with other blueprints on judge metrics instead:
+  `ragpick bench … --judge openai:gpt-4o-mini --metric faithfulness`.
+
+Set `requirements.long_context_model: true` with `corpus_size: small` and the selector
+recommends it (with larger corpora it warns and keeps chunk retrieval).
 
 ## sql
 

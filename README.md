@@ -7,6 +7,9 @@
 [![Python](https://img.shields.io/pypi/pyversions/ragpick.svg)](https://pypi.org/project/ragpick/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
+**ragpick 1.0 is stable:** configs, the Python API, the CLI and the HTTP API only change
+compatibly within 1.x ([stability policy](docs/stability.md), [upgrading](docs/upgrading.md)).
+
 ## Why ragpick
 
 Building a RAG pipeline is easy. **Choosing the right one is the hard part.** Plain vector
@@ -134,7 +137,8 @@ allowed_groups: [support]
 | `multimodal` | ✅ stable | images, diagrams and scanned pages: described at ingest (vision LLM or offline), searched with the text |
 | `conversational` | ✅ stable | chat assistants: follow-ups rewritten with the session history, persistent sessions |
 | `hierarchical` | ✅ stable | RAPTOR-style summary tree: details and big-picture answers from one index |
-| `long_context` | 🗺 planned | small corpora + long-context models: whole documents instead of chunks |
+| `long_context` | ✅ stable | small corpora + long-context models: whole documents (prompt-cache friendly) |
+| `adaptive` | 🗺 planned | pick the cheapest strategy per question at query time |
 | `corrective` | ✅ stable | grades retrieval, retries, and says "I don't know" instead of guessing |
 
 ## CLI
@@ -252,6 +256,7 @@ See [docs/adapters.md](docs/adapters.md).
 [Config reference](docs/config-reference.md) · [Writing a plugin](docs/plugins.md) ·
 [Evaluation](docs/evaluation.md) · [Routing](docs/routing.md) · [Serving](docs/serving.md) ·
 [Multi-tenancy](docs/tenancy.md) · [Conversations](docs/conversations.md) · [Feedback](docs/feedback.md) ·
+[Stability](docs/stability.md) · [Upgrading](docs/upgrading.md) ·
 [Tracing & caching](docs/operations.md) ·
 [LangChain & LlamaIndex](docs/adapters.md) ·
 [Design decisions](docs/decisions.md)
@@ -272,7 +277,9 @@ See [docs/adapters.md](docs/adapters.md).
   LanceDB stores, CI-friendly `ragpick eval --fail-under`
 - **v0.9** ✅: `hierarchical` (RAPTOR) blueprint, answer feedback collection, reranker
   plugins (Cohere, Jina)
-- **v1.0**: `long_context` blueprint, API stability guarantees, upgrade guide
+- **v1.0** ✅: `long_context` blueprint, API stability guarantees, upgrade guide
+- **v1.1**: `adaptive` blueprint (strategy per question), Anthropic generator with prompt
+  caching, Elasticsearch/OpenSearch store
 - **Later**: TypeScript SDK
 
 ## Contributing

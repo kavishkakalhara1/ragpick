@@ -42,6 +42,19 @@ Preview the docs with `mkdocs serve`.
   friendly "install ragpick[extra]" message.
 - Record non-obvious choices in `docs/decisions.md`.
 
+## Changing the public API
+
+ragpick 1.x follows semantic versioning ([docs/stability.md](docs/stability.md)).
+`tests/test_api_stability.py` compares the public surface with `tests/api_snapshot.json`.
+
+- **Adding** something (a method, an optional parameter, a config key, a component, a
+  CLI option, a response field) is fine in a minor release: run
+  `python scripts/api_snapshot.py`, commit the updated snapshot, and add a CHANGELOG entry.
+- **Changing or removing** something public needs a deprecation first: keep the old
+  behaviour working, call `ragpick.deprecation.warn_deprecated(...)` (or use the
+  `@deprecated` decorator), list it under *Deprecated* in the CHANGELOG, and remove it only
+  in the next major release.
+
 ## Adding a component
 
 1. Implement the protocol from `ragpick/interfaces.py` in the matching module under
@@ -66,7 +79,8 @@ Preview the docs with `mkdocs serve`.
 ## Good first issues
 
 - **Loaders**: HTML, DOCX, Notion/Confluence exports, CSV-as-documents.
-- **Blueprints**: `long_context` is next; better community detection (Leiden) for `graph`.
+- **Blueprints**: `adaptive` is next; better community detection (Leiden) for `graph`.
+- **Generators**: Anthropic (with prompt caching), Bedrock, Azure OpenAI.
 - **Rerankers**: Voyage, Mixedbread, LLM-as-reranker.
 - **Stores**: Elasticsearch/OpenSearch, Weaviate, Milvus (with filter push-down).
 - **Multimodal**: CLIP-style image embeddings, OCR for scanned PDFs.

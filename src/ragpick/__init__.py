@@ -14,13 +14,14 @@ from __future__ import annotations
 import logging
 
 from ragpick.config import RagConfig, load_config
+from ragpick.deprecation import RagpickDeprecationWarning
 from ragpick.errors import RagpickError
 from ragpick.models import Answer, Chunk, Document, RetrievedChunk, StreamEvent, Usage
 from ragpick.pipeline import Pipeline
 from ragpick.registry import register, registry
 from ragpick.router import Route, Router, load_engine
 
-__version__ = "0.9.0"
+__version__ = "1.0.0"
 
 __all__ = [
     "Answer",
@@ -28,6 +29,7 @@ __all__ = [
     "Document",
     "Pipeline",
     "RagConfig",
+    "RagpickDeprecationWarning",
     "RagpickError",
     "RetrievedChunk",
     "Route",

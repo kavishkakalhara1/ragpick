@@ -36,6 +36,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from ragpick import tracing
 from ragpick.components.generators import IDK
 from ragpick.components.keyword import tokenize
@@ -46,6 +48,7 @@ from ragpick.config import (
     RouterConfig,
     ServeConfig,
     TracingConfig,
+    format_validation_error,
     is_router_config,
     load_config,
     load_router_config,
@@ -164,6 +167,23 @@ class Router:
         self.feedback_config = feedback_config or FeedbackConfig()
 
     # ------------------------------------------------------------------ building
+    @classmethod
+    def from_yaml(cls, path: str | Path, overrides: Mapping[str, Any] | None = None) -> Router:
+        """Build a router from a router config file."""
+        return cls.from_config(load_router_config(path, overrides))
+
+    @classmethod
+    def from_dict(cls, raw: Mapping[str, Any], *, base_dir: str | Path | None = None) -> Router:
+        """Build a router from a mapping (same schema as a router config file).
+
+        Route ``config`` paths resolve against ``base_dir`` (default: the current directory).
+        """
+        try:
+            config = RouterConfig.model_validate(dict(raw))
+        except ValidationError as exc:
+            raise ConfigError(format_validation_error(exc, "<router>")) from None
+        return cls.from_config(config.with_base_dir(Path(base_dir) if base_dir else Path.cwd()))
+
     @classmethod
     def from_config(cls, config: RouterConfig) -> Router:
         """Build a router (and its route pipelines) from a :class:`RouterConfig`."""
@@ -485,5 +505,5 @@ def load_engine(path: str | Path, overrides: Mapping[str, Any] | None = None) ->
     """Load any config file: a :class:`Router` for router configs, else a :class:`Pipeline`."""
     raw = read_yaml(path)
     if is_router_config(raw):
-        return Router.from_config(load_router_config(path, overrides))
+        return Router.from_yaml(path, overrides)
     return Pipeline.from_yaml(path, overrides)

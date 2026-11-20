@@ -280,6 +280,24 @@ interfaces extensible. Each decision is listed here so it can be revisited.
 91. **Hosted rerankers use `httpx` directly**, with the same `{index, relevance_score}`
     result shape for Cohere and Jina, and keep each chunk's original `source`.
 
+## v1.0
+
+92. **long_context ranks documents with chunk search** (sum of fused chunk scores), then
+    returns whole documents; full texts are kept via the `DocumentIndexer` hook so stores
+    stay chunk-based. Token budgets use the same ~4 chars/token estimate as usage.
+93. **`include_all` sorts documents by id**, not by score, so the prompt prefix is identical
+    across questions: correctness of caching beats per-question ordering.
+94. **The 1.x contract is defined by a snapshot**, not by convention: exports, protocol and
+    engine signatures, model fields, config keys, CLI options, HTTP endpoints, registry
+    names and blueprints. CI fails on any difference; intentional changes regenerate it.
+    Signatures use postponed annotations, so the snapshot is identical across Python
+    3.11-3.13.
+95. **Prompts, heuristics, log lines and trace attributes are explicitly not API**, so
+    answer quality can keep improving in minor releases.
+96. **Deprecation before removal**: `RagpickDeprecationWarning` (a `DeprecationWarning`
+    subclass, so standard filters work) for at least one minor release; removals only in
+    a major release.
+
 ## Tooling
 
 31. **`types-PyYAML` is not a dev dependency** (it wasn't in the approved list), so mypy

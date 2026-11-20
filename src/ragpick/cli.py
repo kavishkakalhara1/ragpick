@@ -184,6 +184,7 @@ def _ask_requirements() -> Requirements:
     tenants = _confirm("Must several customers' data be kept separate (multi-tenant)?", False)
     chatty = _confirm("Will users ask follow-up questions in a chat?", False)
     overviews = _confirm("Do users ask for overviews/summaries as well as details?", False)
+    long_ctx = _confirm("Does your LLM read 100k+ tokens (long-context model)?", False)
     strict = _confirm('Is a wrong answer worse than "I don\'t know"?', False)
     latency = _ask("Latency requirement", "normal", ["low", "normal"])
     citations = _confirm("Must answers cite their sources?", True)
@@ -199,6 +200,7 @@ def _ask_requirements() -> Requirements:
             "multi_tenant": tenants,
             "conversational": chatty,
             "summary_questions": overviews,
+            "long_context_model": long_ctx,
             "strict_grounding": strict,
             "latency": latency,
             "needs_citations": citations,

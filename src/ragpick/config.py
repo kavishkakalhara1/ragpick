@@ -73,6 +73,9 @@ class Requirements(_Strict):
     summary_questions: bool = Field(
         False, description="Users ask for overviews and summaries as well as details."
     )
+    long_context_model: bool = Field(
+        False, description="The LLM reads 100k+ tokens (and the corpus is small)."
+    )
     multi_hop: bool = Field(
         False, description="Questions connect facts spread across several documents."
     )

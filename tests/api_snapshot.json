@@ -1,0 +1,496 @@
+{
+  "blueprints": {
+    "adaptive": "planned",
+    "agentic": "stable",
+    "conversational": "stable",
+    "corrective": "stable",
+    "graph": "stable",
+    "hierarchical": "stable",
+    "hybrid": "stable",
+    "long_context": "stable",
+    "multimodal": "stable",
+    "naive": "stable",
+    "parent_child": "stable",
+    "sql": "stable"
+  },
+  "cli": {
+    "bench": [
+      "--blueprint",
+      "--config",
+      "--data",
+      "--judge",
+      "--metric",
+      "--output",
+      "--top-k",
+      "--write",
+      "-b",
+      "-c",
+      "-o",
+      "dataset"
+    ],
+    "blueprints": [],
+    "cache clear": [
+      "--config",
+      "-c"
+    ],
+    "cache stats": [
+      "--config",
+      "-c"
+    ],
+    "chat": [
+      "--config",
+      "--groups",
+      "--session",
+      "--set",
+      "--tenant",
+      "-c"
+    ],
+    "eval": [
+      "--config",
+      "--data",
+      "--fail-over",
+      "--fail-under",
+      "--judge",
+      "--output",
+      "-c",
+      "-o",
+      "dataset"
+    ],
+    "feedback export": [
+      "--as-eval",
+      "--config",
+      "--output",
+      "-c",
+      "-o"
+    ],
+    "feedback stats": [
+      "--config",
+      "-c"
+    ],
+    "generate-eval": [
+      "--config",
+      "--count",
+      "--force",
+      "--mode",
+      "--output",
+      "--seed",
+      "--set",
+      "-c",
+      "-o",
+      "path"
+    ],
+    "ingest": [
+      "--config",
+      "--set",
+      "--tenant",
+      "-c",
+      "path"
+    ],
+    "init": [
+      "--blueprint",
+      "--force",
+      "--name",
+      "--output",
+      "--provider",
+      "--yes",
+      "-b",
+      "-o",
+      "-y"
+    ],
+    "query": [
+      "--config",
+      "--groups",
+      "--set",
+      "--show-contexts",
+      "--stream",
+      "--tenant",
+      "--top-k",
+      "--trace",
+      "-c",
+      "question"
+    ],
+    "recommend": [
+      "--config",
+      "-c"
+    ],
+    "serve": [
+      "--config",
+      "--host",
+      "--port",
+      "--server",
+      "--set",
+      "-c"
+    ],
+    "validate": [
+      "--config",
+      "--set",
+      "-c"
+    ]
+  },
+  "config_keys": {
+    "rag.yaml": [
+      "version",
+      "name",
+      "blueprint",
+      "data",
+      "requirements",
+      "requirements.data_types",
+      "requirements.corpus_size",
+      "requirements.keyword_heavy",
+      "requirements.long_documents",
+      "requirements.complex_questions",
+      "requirements.multi_tenant",
+      "requirements.conversational",
+      "requirements.summary_questions",
+      "requirements.long_context_model",
+      "requirements.multi_hop",
+      "requirements.strict_grounding",
+      "requirements.latency",
+      "requirements.needs_citations",
+      "requirements.access_control",
+      "components",
+      "components.loader",
+      "components.loader.type",
+      "components.loader.params",
+      "components.chunker",
+      "components.chunker.type",
+      "components.chunker.params",
+      "components.embedder",
+      "components.embedder.type",
+      "components.embedder.params",
+      "components.store",
+      "components.store.type",
+      "components.store.params",
+      "components.keyword_index",
+      "components.keyword_index.type",
+      "components.keyword_index.params",
+      "components.retriever",
+      "components.retriever.type",
+      "components.retriever.params",
+      "components.reranker",
+      "components.reranker.type",
+      "components.reranker.params",
+      "components.generator",
+      "components.generator.type",
+      "components.generator.params",
+      "query",
+      "query.top_k",
+      "eval",
+      "eval.judge",
+      "eval.judge.type",
+      "eval.judge.params",
+      "eval.prices",
+      "eval.prices.prompt_per_1m",
+      "eval.prices.completion_per_1m",
+      "eval.fail_under",
+      "eval.fail_over",
+      "tracing",
+      "tracing.enabled",
+      "tracing.exporters",
+      "tracing.exporters.type",
+      "tracing.exporters.params",
+      "cache",
+      "cache.enabled",
+      "cache.dir",
+      "cache.embeddings",
+      "cache.generations",
+      "cache.ttl_seconds",
+      "serve",
+      "serve.host",
+      "serve.port",
+      "serve.api_keys",
+      "serve.api_keys.key",
+      "serve.api_keys.name",
+      "serve.api_keys.groups",
+      "serve.api_keys.tenant",
+      "serve.max_body_bytes",
+      "serve.cors_origins",
+      "serve.allow_traces",
+      "tenancy",
+      "tenancy.enabled",
+      "tenancy.max_loaded",
+      "conversation",
+      "conversation.rewrite",
+      "conversation.max_turns",
+      "conversation.store",
+      "conversation.max_sessions",
+      "conversation.ttl_seconds",
+      "feedback",
+      "feedback.enabled",
+      "feedback.answer_log_size",
+      "index_dir"
+    ],
+    "router.yaml": [
+      "version",
+      "name",
+      "router",
+      "router.strategy",
+      "router.routes",
+      "router.routes.name",
+      "router.routes.config",
+      "router.routes.description",
+      "router.routes.keywords",
+      "router.routes.groups",
+      "router.default",
+      "router.fallback",
+      "router.llm",
+      "router.llm.type",
+      "router.llm.params",
+      "eval",
+      "eval.judge",
+      "eval.judge.type",
+      "eval.judge.params",
+      "eval.prices",
+      "eval.prices.prompt_per_1m",
+      "eval.prices.completion_per_1m",
+      "eval.fail_under",
+      "eval.fail_over",
+      "tracing",
+      "tracing.enabled",
+      "tracing.exporters",
+      "tracing.exporters.type",
+      "tracing.exporters.params",
+      "serve",
+      "serve.host",
+      "serve.port",
+      "serve.api_keys",
+      "serve.api_keys.key",
+      "serve.api_keys.name",
+      "serve.api_keys.groups",
+      "serve.api_keys.tenant",
+      "serve.max_body_bytes",
+      "serve.cors_origins",
+      "serve.allow_traces",
+      "conversation",
+      "conversation.rewrite",
+      "conversation.max_turns",
+      "conversation.store",
+      "conversation.max_sessions",
+      "conversation.ttl_seconds",
+      "feedback",
+      "feedback.enabled",
+      "feedback.answer_log_size",
+      "sessions_dir"
+    ]
+  },
+  "engines": {
+    "Pipeline": {
+      "chat": "(message: 'str', *, session_id: 'str | None' = None, owner: 'str | None' = None, groups: 'list[str] | None' = None, filters: 'dict[str, Any] | None' = None, top_k: 'int | None' = None, trace: 'bool | None' = None, tenant: 'str | None' = None) -> 'Answer'",
+      "chat_stream": "(message: 'str', *, session_id: 'str | None' = None, owner: 'str | None' = None, groups: 'list[str] | None' = None, filters: 'dict[str, Any] | None' = None, top_k: 'int | None' = None, tenant: 'str | None' = None) -> 'Iterator[StreamEvent]'",
+      "for_tenant": "(tenant: 'str') -> 'Pipeline'",
+      "from_dict": "(raw: 'Mapping[str, Any]', *, base_dir: 'str | Path | None' = None, **kwargs: 'Any') -> 'Pipeline'",
+      "from_yaml": "(path: 'str | Path', overrides: 'Mapping[str, Any] | None' = None) -> 'Pipeline'",
+      "ingest": "(path: 'str | Path | None' = None, *, batch_size: 'int' = 64, progress: 'ProgressCallback | None' = None, tenant: 'str | None' = None) -> 'IngestStats'",
+      "load": "() -> 'None'",
+      "persist": "() -> 'None'",
+      "query": "(question: 'str', *, groups: 'list[str] | None' = None, filters: 'dict[str, Any] | None' = None, top_k: 'int | None' = None, trace: 'bool | None' = None, tenant: 'str | None' = None) -> 'Answer'",
+      "ready": "() -> 'bool'",
+      "record_feedback": "(answer: 'Answer', rating: 'str | int | float | bool', *, comment: 'str | None' = None, owner: 'str | None' = None, tenant: 'str | None' = None, groups: 'list[str] | None' = None) -> 'str'",
+      "retrieve": "(question: 'str', *, groups: 'list[str] | None' = None, filters: 'dict[str, Any] | None' = None, top_k: 'int | None' = None, tenant: 'str | None' = None) -> 'list[RetrievedChunk]'",
+      "stream": "(question: 'str', *, groups: 'list[str] | None' = None, filters: 'dict[str, Any] | None' = None, top_k: 'int | None' = None, tenant: 'str | None' = None) -> 'Iterator[StreamEvent]'"
+    },
+    "Router": {
+      "chat": "(message: 'str', *, session_id: 'str | None' = None, owner: 'str | None' = None, groups: 'list[str] | None' = None, filters: 'dict[str, Any] | None' = None, top_k: 'int | None' = None, trace: 'bool | None' = None, tenant: 'str | None' = None) -> 'Answer'",
+      "chat_stream": "(message: 'str', *, session_id: 'str | None' = None, owner: 'str | None' = None, groups: 'list[str] | None' = None, filters: 'dict[str, Any] | None' = None, top_k: 'int | None' = None, tenant: 'str | None' = None) -> 'Iterator[StreamEvent]'",
+      "from_dict": "(raw: 'Mapping[str, Any]', *, base_dir: 'str | Path | None' = None) -> 'Router'",
+      "from_yaml": "(path: 'str | Path', overrides: 'Mapping[str, Any] | None' = None) -> 'Router'",
+      "ingest": "(path: 'str | Path | None' = None, *, progress: 'ProgressCallback | None' = None, tenant: 'str | None' = None) -> 'dict[str, IngestStats]'",
+      "query": "(question: 'str', *, groups: 'list[str] | None' = None, filters: 'dict[str, Any] | None' = None, top_k: 'int | None' = None, trace: 'bool | None' = None, tenant: 'str | None' = None) -> 'Answer'",
+      "ready": "() -> 'bool'",
+      "record_feedback": "(answer: 'Answer', rating: 'str | int | float | bool', *, comment: 'str | None' = None, owner: 'str | None' = None, tenant: 'str | None' = None, groups: 'list[str] | None' = None) -> 'str'",
+      "retrieve": "(question: 'str', *, groups: 'list[str] | None' = None, filters: 'dict[str, Any] | None' = None, top_k: 'int | None' = None, tenant: 'str | None' = None) -> 'list[RetrievedChunk]'",
+      "stream": "(question: 'str', *, groups: 'list[str] | None' = None, filters: 'dict[str, Any] | None' = None, top_k: 'int | None' = None, tenant: 'str | None' = None) -> 'Iterator[StreamEvent]'"
+    }
+  },
+  "entry_point_group": "ragpick.components",
+  "exports": [
+    "Answer",
+    "Chunk",
+    "Document",
+    "Pipeline",
+    "RagConfig",
+    "RagpickDeprecationWarning",
+    "RagpickError",
+    "RetrievedChunk",
+    "Route",
+    "Router",
+    "StreamEvent",
+    "Usage",
+    "__version__",
+    "load_config",
+    "load_engine",
+    "register",
+    "registry"
+  ],
+  "http": [
+    "DELETE /sessions/{id}",
+    "GET /health",
+    "GET /info",
+    "POST /chat",
+    "POST /feedback",
+    "POST /query",
+    "POST /retrieve"
+  ],
+  "models": {
+    "Answer": [
+      "citations",
+      "contexts",
+      "id",
+      "question",
+      "route",
+      "session_id",
+      "standalone_question",
+      "text",
+      "trace",
+      "usage"
+    ],
+    "Chunk": [
+      "doc_id",
+      "embedding",
+      "id",
+      "metadata",
+      "text"
+    ],
+    "Completion": [
+      "text",
+      "usage"
+    ],
+    "Document": [
+      "id",
+      "metadata",
+      "text"
+    ],
+    "RetrievedChunk": [
+      "chunk",
+      "score",
+      "source"
+    ],
+    "StreamEvent": [
+      "answer",
+      "contexts",
+      "text",
+      "type"
+    ],
+    "Usage": [
+      "cached",
+      "completion_tokens",
+      "latency_ms",
+      "prompt_tokens"
+    ]
+  },
+  "protocols": {
+    "ChunkIndexer": {
+      "index_chunks": "(chunks: 'list[Chunk]') -> 'None'"
+    },
+    "Chunker": {
+      "split": "(docs: 'Iterable[Document]') -> 'list[Chunk]'"
+    },
+    "DocumentIndexer": {
+      "index_documents": "(docs: 'list[Document]') -> 'None'"
+    },
+    "Embedder": {
+      "embed": "(texts: 'list[str]') -> 'list[list[float]]'"
+    },
+    "Generator": {
+      "generate": "(query: 'str', contexts: 'list[RetrievedChunk]') -> 'Answer'"
+    },
+    "KeywordIndex": {
+      "add": "(chunks: 'list[Chunk]') -> 'None'",
+      "load": "(path: 'str') -> 'None'",
+      "persist": "(path: 'str') -> 'None'",
+      "search": "(query: 'str', k: 'int', filters: 'Filters | None' = None) -> 'list[RetrievedChunk]'"
+    },
+    "Loader": {
+      "load": "(path: 'str') -> 'Iterable[Document]'"
+    },
+    "Reranker": {
+      "rerank": "(query: 'str', chunks: 'list[RetrievedChunk]', top_n: 'int') -> 'list[RetrievedChunk]'"
+    },
+    "Retriever": {
+      "retrieve": "(query: 'str', k: 'int', filters: 'Filters | None' = None) -> 'list[RetrievedChunk]'"
+    },
+    "StreamingGenerator": {
+      "stream": "(query: 'str', contexts: 'list[RetrievedChunk]') -> 'Iterator[str | Usage]'"
+    },
+    "TextCompleter": {
+      "complete": "(system: 'str', user: 'str') -> 'Completion'"
+    },
+    "VectorStore": {
+      "add": "(chunks: 'list[Chunk]') -> 'None'",
+      "delete": "(doc_ids: 'list[str]') -> 'None'",
+      "load": "(path: 'str') -> 'None'",
+      "persist": "(path: 'str') -> 'None'",
+      "search": "(vector: 'list[float]', k: 'int', filters: 'Filters | None' = None) -> 'list[RetrievedChunk]'"
+    },
+    "VisionCompleter": {
+      "describe_image": "(image: 'bytes', mime: 'str', prompt: 'str') -> 'Completion'"
+    }
+  },
+  "registry": {
+    "chunker": [
+      "fixed",
+      "none",
+      "parent_child",
+      "recursive"
+    ],
+    "embedder": [
+      "fake",
+      "langchain",
+      "llamaindex",
+      "openai",
+      "sentence_transformers"
+    ],
+    "generator": [
+      "fake",
+      "langchain",
+      "llamaindex",
+      "ollama",
+      "openai"
+    ],
+    "keyword_index": [
+      "bm25"
+    ],
+    "loader": [
+      "csv",
+      "directory",
+      "langchain",
+      "llamaindex",
+      "multimodal",
+      "pdf",
+      "text"
+    ],
+    "reranker": [
+      "cohere",
+      "cross_encoder",
+      "jina",
+      "none"
+    ],
+    "retriever": [
+      "agentic",
+      "corrective",
+      "graph",
+      "hierarchical",
+      "hybrid",
+      "keyword",
+      "langchain",
+      "llamaindex",
+      "long_context",
+      "parent_child",
+      "sql",
+      "vector"
+    ],
+    "store": [
+      "chroma",
+      "lancedb",
+      "memory",
+      "pgvector",
+      "qdrant"
+    ],
+    "trace_exporter": [
+      "console",
+      "jsonl",
+      "otel"
+    ]
+  },
+  "version_scheme": "semver; public surface of ragpick 1.x"
+}

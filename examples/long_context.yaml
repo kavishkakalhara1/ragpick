@@ -1,0 +1,15 @@
+# Offline example: long_context. The whole (visible) corpus goes to the model in a
+# stable order whenever it fits the budget, so prompt caching can kick in.
+#   ragpick ingest -c examples/long_context.yaml
+#   ragpick query "Does the LM-200 need a C-wire?" -c examples/long_context.yaml --trace
+version: 1
+name: long-context
+blueprint: long_context
+data: data
+index_dir: .ragpick/long_context
+requirements:
+  corpus_size: small
+  long_context_model: true
+components:
+  retriever:
+    params: {max_context_tokens: 100000, include_all: true}

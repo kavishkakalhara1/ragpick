@@ -6,6 +6,30 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-20
+
+ragpick 1.0 commits to a stable public API: configs, the Python API, the CLI and the HTTP
+API only change compatibly within 1.x (see `docs/stability.md`). Nothing was removed;
+every 0.9 config and integration keeps working.
+
+### Added
+
+- `long_context` blueprint (stable): documents are ranked with hybrid chunk search and
+  passed **whole** to long-context models within a token budget; with `include_all`, the
+  entire visible corpus is sent in a stable order so provider prompt caching applies.
+  Document-level access control. `requirements.long_context_model`.
+- API stability contract: `docs/stability.md`, a committed public-API snapshot
+  (`tests/api_snapshot.json`, `scripts/api_snapshot.py`) checked in CI, and deprecation
+  helpers (`ragpick.deprecation.deprecated`, `RagpickDeprecationWarning`).
+- Upgrade guide (`docs/upgrading.md`): behaviour changes since 0.2 and a migration path
+  from LangChain / LlamaIndex.
+- `Router.from_yaml()` and `Router.from_dict()`, matching `Pipeline`.
+- `adaptive` added to the roadmap as a planned blueprint.
+
+### Changed
+
+- Development status: Production/Stable.
+
 ## [0.9.0] - 2026-11-20
 
 ### Added
@@ -226,7 +250,8 @@ All notable changes to this project are documented here. The format follows
   relevance, latency percentiles, tokens and estimated cost; JSON/CSV output.
 - CLI: `init`, `recommend`, `blueprints`, `ingest`, `query`, `eval`, `validate`.
 
-[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/kavishkakalhara1/ragpick/compare/v0.7.0...v0.7.1

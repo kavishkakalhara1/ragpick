@@ -65,7 +65,7 @@ def test_init_refuses_overwrite_and_validates(workdir: Path) -> None:
     code, out = run("init", "--yes")
     assert code == 1
     assert "already exists" in out
-    code, out = run("init", "--yes", "--force", "--blueprint", "long_context")
+    code, out = run("init", "--yes", "--force", "--blueprint", "adaptive")
     assert code == 1
     assert "planned" in out
     code, out = run("init", "--yes", "--force", "--provider", "nope")
@@ -107,6 +107,7 @@ def test_init_interactive(workdir: Path) -> None:
             "y",  # multi-tenant
             "n",  # conversational
             "n",  # summary questions
+            "n",  # long-context model
             "n",  # strict grounding
             "low",  # latency
             "y",  # citations

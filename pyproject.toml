@@ -14,7 +14,7 @@ authors = [{ name = "Kavishka Kalhara" }]
 maintainers = [{ name = "Kavishka Kalhara" }]
 keywords = ["rag", "retrieval", "llm", "evaluation", "bm25", "hybrid-search"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",

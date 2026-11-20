@@ -51,6 +51,17 @@ logger = logging.getLogger(__name__)
 
 _HIDDEN_METADATA = {"parent_text"}
 
+#: The HTTP API (part of ragpick's 1.x stability contract).
+ENDPOINTS: tuple[tuple[str, str], ...] = (
+    ("GET", "/health"),
+    ("GET", "/info"),
+    ("POST", "/query"),
+    ("POST", "/retrieve"),
+    ("POST", "/chat"),
+    ("POST", "/feedback"),
+    ("DELETE", "/sessions/{id}"),
+)
+
 
 class QueryRequest(BaseModel):
     """Body of ``POST /query`` and ``POST /retrieve``."""

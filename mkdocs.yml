@@ -35,6 +35,8 @@ nav:
   - Feedback: feedback.md
   - Tracing & caching: operations.md
   - LangChain & LlamaIndex: adapters.md
+  - Stability: stability.md
+  - Upgrading: upgrading.md
   - Design decisions: decisions.md
 
 markdown_extensions:

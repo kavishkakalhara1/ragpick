@@ -1,0 +1,10 @@
+metadata:
+  name: adaptive
+  description: >-
+    Adaptive RAG: classify each question at query time and pick the cheapest strategy
+    that can answer it (no retrieval, single-shot hybrid, or multi-step agentic).
+  best_for:
+    - mixed traffic where most questions are easy and a few need multi-step retrieval
+  tradeoffs:
+    - one classification call per question
+  status: planned

@@ -221,6 +221,26 @@ RULES: list[Rule] = [
         alternatives=("graph", "parent_child"),
     ),
     Rule(
+        id="long_context",
+        when=lambda c: _r(c).long_context_model and _r(c).corpus_size == "small",
+        blueprint="long_context",
+        priority=55,
+        reason=(
+            "Small corpus and a long-context model: whole documents (or the whole corpus, "
+            "in a stable order that enables provider prompt caching) go to the model "
+            "instead of chunks, so no context is lost to chunking."
+        ),
+        alternatives=("hybrid",),
+    ),
+    Rule(
+        id="long_context_large_corpus",
+        when=lambda c: _r(c).long_context_model and _r(c).corpus_size != "small",
+        warning=(
+            "long_context suits small corpora; with a {corpus_size} corpus, retrieval of "
+            "chunks (the recommended blueprint) is cheaper and usually more accurate."
+        ),
+    ),
+    Rule(
         id="long_documents",
         when=lambda c: _r(c).long_documents,
         blueprint="parent_child",

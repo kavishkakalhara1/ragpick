@@ -159,6 +159,10 @@ fails, so a misconfigured job can't pass silently. In GitHub Actions:
 
 ## Tips
 
+- Rank metrics (MRR, precision) assume contexts are ordered by relevance. They're not
+  meaningful for `long_context` with `include_all` (documents in a stable order): compare
+  it with `faithfulness` / `answer_relevance` using a judge.
+
 - If `cache` is enabled, repeated runs reuse answers: costs drop to zero and latencies to
   near zero. Disable the cache when measuring latency.
 

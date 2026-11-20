@@ -25,11 +25,18 @@ pip install "ragpick[openai]"    # + OpenAI embeddings and chat models
 pip install "ragpick[all]"       # + sentence-transformers, Qdrant, PDF
 ```
 
+ragpick 1.0 is stable: see the [stability policy](stability.md) and the
+[upgrade guide](upgrading.md).
+
 ## Next steps
 
 - [Concepts](concepts.md): components, blueprints, the selector, access control.
 - [Blueprints](blueprints.md): what each architecture is good at.
 - [Config reference](config-reference.md): every `rag.yaml` key.
 - [Writing a plugin](plugins.md): add your own loader, store, or model.
-- [Evaluation](evaluation.md): metrics and how to compare configs.
-- [Design decisions](decisions.md): the choices behind v0.1.
+- [Evaluation](evaluation.md): metrics, generated datasets, CI gates and `bench`.
+- [Routing](routing.md), [serving](serving.md), [multi-tenancy](tenancy.md),
+  [conversations](conversations.md) and [feedback](feedback.md): running it in production.
+- [Tracing & caching](operations.md) and [LangChain & LlamaIndex](adapters.md).
+- [Stability](stability.md) and [upgrading](upgrading.md): the 1.x contract.
+- [Design decisions](decisions.md): the reasoning behind every release.

@@ -43,6 +43,7 @@ What the application needs. Used by the selector (`ragpick recommend`).
 | `multi_tenant` | bool | `False` | Several customers' data must be kept in separate indexes. |
 | `conversational` | bool | `False` | Users ask follow-up questions in a chat. |
 | `summary_questions` | bool | `False` | Users ask for overviews and summaries as well as details. |
+| `long_context_model` | bool | `False` | The LLM reads 100k+ tokens (and the corpus is small). |
 | `multi_hop` | bool | `False` | Questions connect facts spread across several documents. |
 | `strict_grounding` | bool | `False` | Wrong answers are costly: prefer "I don't know" over guessing. |
 | `latency` | `low` \| `normal` | `'normal'` | `low` disables expensive stages. |

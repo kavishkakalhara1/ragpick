@@ -1,11 +1,27 @@
 metadata:
   name: long_context
   description: >-
-    For small corpora and long-context models: skip chunk retrieval and pass whole
-    documents (selected by a cheap document-level search) to the model, with prompt
-    caching to keep repeated questions affordable.
+    For small corpora and long-context models: rank documents with hybrid search and
+    pass whole documents (or the entire corpus, in a stable order that enables
+    provider prompt caching) to the model, within a token budget.
   best_for:
-    - small, stable corpora (a few hundred pages) with long-context LLMs
+    - small, stable corpora (up to a few hundred pages) with 100k+ token models
+    - questions that need a document's full context (policies, contracts, specs)
   tradeoffs:
-    - higher per-query token cost without prompt caching
-  status: planned
+    - much larger prompts, so cost per query depends on prompt caching
+    - not for large corpora (falls back to the top documents within the budget)
+  status: stable
+defaults:
+  components:
+    loader: {type: directory, params: {glob: "**/*"}}
+    chunker: {type: recursive, params: {chunk_size: 800, overlap: 100}}
+    embedder: {type: fake, params: {dimension: 256}}
+    store: {type: memory}
+    keyword_index: {type: bm25, params: {k1: 1.5, b: 0.75}}
+    retriever:
+      type: long_context
+      params: {max_docs: 3, max_context_tokens: 100000, include_all: true}
+    reranker: {type: none}
+    generator: {type: fake}
+  query:
+    top_k: 50   # the retriever enforces the token budget; don't cut documents here

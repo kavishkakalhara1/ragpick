@@ -44,6 +44,9 @@ jobs:
       - name: Config reference is up to date
         run: uv run --no-sync python scripts/gen_config_reference.py --check
 
+      - name: Public API matches the 1.x snapshot
+        run: uv run --no-sync python scripts/api_snapshot.py --check
+
       - name: Tests
         run: >-
           uv run --no-sync pytest
