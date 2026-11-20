@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-20
+
+### Fixed
+
+- With `cache` enabled, vision generators were not recognised as vision-capable on
+  Python 3.12+ (runtime protocol checks there ignore `__getattr__`), so the multimodal
+  loader silently fell back to offline image descriptions. Cached generators now define
+  `describe_image` explicitly when the wrapped generator supports it.
+
 ## [0.7.0] - 2026-11-20
 
 ### Added
@@ -177,7 +186,8 @@ All notable changes to this project are documented here. The format follows
   relevance, latency percentiles, tokens and estimated cost; JSON/CSV output.
 - CLI: `init`, `recommend`, `blueprints`, `ingest`, `query`, `eval`, `validate`.
 
-[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/kavishkakalhara1/ragpick/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.4.0...v0.5.0

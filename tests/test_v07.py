@@ -364,6 +364,35 @@ def test_cached_image_descriptions(tmp_path: Path) -> None:
     plain = wrap_generator(FakeGenerator(), Cache(tmp_path / "d.sqlite"), {})
     assert not isinstance(plain, VisionCompleter)  # no describe_image on the inner generator
 
+    class VisionOnly:
+        def generate(self, query: str, contexts: Any) -> Any:
+            raise AssertionError
+
+        def describe_image(self, image: bytes, mime: str, prompt: str) -> Completion:
+            return Completion(text="seen")
+
+    only = wrap_generator(VisionOnly(), Cache(tmp_path / "e.sqlite"), {})
+    assert isinstance(only, VisionCompleter)
+    assert only.describe_image(b"i", "image/png", "p").text == "seen"  # type: ignore[attr-defined]
+
+
+def test_cached_vision_pipeline_uses_vision(tmp_path: Path) -> None:
+    """Regression (v0.7.0 on Python 3.12+): with the cache on, vision must still be used."""
+    vision = Vision()
+    pipeline = Pipeline.from_dict(
+        {
+            "blueprint": "multimodal",
+            "index_dir": str(tmp_path / "i"),
+            "cache": {"enabled": True, "dir": str(tmp_path / "c")},
+        },
+        components={"generator": vision},
+    )
+    assert pipeline.loader.vision is not None  # type: ignore[attr-defined]
+    pipeline.ingest(IMAGES)
+    assert len(vision.calls) == 2
+    pipeline.ingest(IMAGES)  # second ingest: descriptions come from the cache
+    assert len(vision.calls) == 2
+
 
 def test_selector_images() -> None:
     r = recommend({"data_types": ["markdown", "diagrams"]}, installed=lambda m: True)

@@ -19,7 +19,7 @@ from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
-from ragpick.interfaces import Embedder, Generator, TextCompleter
+from ragpick.interfaces import Embedder, Generator, TextCompleter, VisionCompleter
 from ragpick.models import Answer, Completion, RetrievedChunk, Usage
 from ragpick.tracing import set_attributes
 
@@ -168,23 +168,7 @@ class CachedGenerator:
         self.fingerprint = fingerprint
 
     def __getattr__(self, name: str) -> Any:
-        attr = getattr(self.inner, name)  # AttributeError if the inner lacks it
-        if name == "describe_image" and callable(attr):
-            return self._cached_describe(attr)
-        return attr
-
-    def _cached_describe(self, describe: Any) -> Any:
-        def cached(image: bytes, mime: str, prompt: str) -> Completion:
-            digest = hashlib.sha256(image).hexdigest()
-            key = make_key("describe_image", self.fingerprint, [digest, mime, prompt])
-            hit = self.cache.get(key)
-            if hit is not None:
-                return Completion(text=str(hit), usage=Usage(cached=True))
-            completion: Completion = describe(image, mime, prompt)
-            self.cache.set(key, "describe_image", completion.text)
-            return completion
-
-        return cached
+        return getattr(self.inner, name)
 
     def generate(self, query: str, contexts: list[RetrievedChunk]) -> Answer:
         """Return a cached answer or generate (and cache) a new one."""
@@ -246,8 +230,44 @@ class CachedCompleterGenerator(CachedGenerator):
         return completion
 
 
+class _CachedVision:
+    """Mixin: cached ``describe_image``, keyed by image hash.
+
+    Defined as a real method (not via ``__getattr__``) because ``isinstance`` checks
+    against runtime-checkable protocols ignore ``__getattr__`` on Python 3.12+.
+    """
+
+    inner: Any
+    cache: Cache
+    fingerprint: Any
+
+    def describe_image(self, image: bytes, mime: str, prompt: str) -> Completion:
+        """Describe ``image`` via the inner generator, reusing cached descriptions."""
+        digest = hashlib.sha256(image).hexdigest()
+        key = make_key("describe_image", self.fingerprint, [digest, mime, prompt])
+        hit = self.cache.get(key)
+        if hit is not None:
+            return Completion(text=str(hit), usage=Usage(cached=True))
+        completion: Completion = self.inner.describe_image(image, mime, prompt)
+        self.cache.set(key, "describe_image", completion.text)
+        return completion
+
+
+class CachedVisionGenerator(_CachedVision, CachedGenerator):
+    """A :class:`CachedGenerator` for vision generators without ``complete``."""
+
+
+class CachedVisionCompleterGenerator(_CachedVision, CachedCompleterGenerator):
+    """A :class:`CachedCompleterGenerator` that also caches image descriptions."""
+
+
 def wrap_generator(inner: Generator, cache: Cache, fingerprint: Any) -> CachedGenerator:
-    """Wrap ``inner``, preserving ``complete`` support when it has it."""
+    """Wrap ``inner``, preserving its ``complete`` and ``describe_image`` support."""
+    vision = isinstance(inner, VisionCompleter)
     if isinstance(inner, TextCompleter):
-        return CachedCompleterGenerator(inner, cache, fingerprint)
-    return CachedGenerator(inner, cache, fingerprint)
+        cls: type[CachedGenerator] = (
+            CachedVisionCompleterGenerator if vision else CachedCompleterGenerator
+        )
+    else:
+        cls = CachedVisionGenerator if vision else CachedGenerator
+    return cls(inner, cache, fingerprint)

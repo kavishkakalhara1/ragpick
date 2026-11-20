@@ -89,6 +89,7 @@ def test_load_csv_table_infers_types(tmp_path: Path) -> None:
     ]
     assert load_csv_table(conn, "empty", "") == 0
     assert load_csv_table(conn, "t", "a\n") == 0  # header only: table recreated, no rows
+    conn.close()
 
 
 def test_csv_loader_and_no_chunker(tmp_path: Path) -> None:
