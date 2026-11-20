@@ -680,6 +680,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#v05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.5
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tooling" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -806,6 +817,17 @@
     <span class="md-ellipsis">
       
         v0.4
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v0.5
       
     </span>
   </a>
@@ -1015,6 +1037,33 @@ interfaces extensible. Each decision is listed here so it can be revisited.</p>
 <li><strong>The OpenTelemetry exporter replays finished traces</strong> rather than instrumenting live,
     so ragpick's tracing stays dependency-free and every backend sees identical spans.
     Root spans carry a wall-clock <code>timestamp</code> for absolute times.</li>
+</ol>
+<h2 id="v05">v0.5<a class="headerlink" href="#v05" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Streams are events, not raw text</strong>: contexts first (so UIs can show sources while
+    the answer is written), then deltas, then the full <code>Answer</code> with parsed citations.
+    Generators without <code>stream()</code> produce one delta. Streams aren't traced (generators
+    and context variables don't mix reliably), and routers don't fall back mid-stream.</li>
+<li><strong>Streamed HTTP responses retrieve before streaming</strong>, so "not ingested" and
+    validation errors keep proper status codes; later failures end the stream with an
+    <code>error</code> event that hides provider details.</li>
+<li><strong>GraphRAG v1 is local search</strong>: entity matching + N-hop expansion fused with hybrid
+    search by RRF, plus a facts context. Global "themes" search needs community
+    summarisation and is deferred.</li>
+<li><strong>Graph extraction runs through a <code>ChunkIndexer</code> hook</strong> and is persisted as JSON next to
+    the other indexes; the graph stores chunk copies (like BM25) so it can return chunks
+    and check their metadata. Re-ingest replaces a document's graph contributions.</li>
+<li><strong>The offline extractor is deliberately conservative</strong>: codes, acronyms and
+    multi-word capitalised names only (single capitalised words are mostly UI labels and
+    sentence starts), with codes kept inside longer names so "LM-300" links to "LM-300 Pro".</li>
+<li><strong>Graph facts respect access control</strong> by requiring a supporting chunk the caller can
+    see, so relations learned from restricted documents never appear for others.</li>
+<li><strong>Synthetic contexts</strong> (<code>metadata.synthetic</code>) are excluded from retrieval metrics,
+    since they aren't documents.</li>
+<li><strong>PostgreSQL table checks use <code>EXPLAIN (FORMAT JSON)</code></strong> relation lists, which see through
+    views, CTEs and subqueries, plus read-only sessions, <code>statement_timeout</code> and a
+    function denylist. A least-privilege database role remains the primary boundary.
+    <code>psycopg</code> is loaded lazily with a custom install hint (no new extra).</li>
 </ol>
 <h2 id="tooling">Tooling<a class="headerlink" href="#tooling" title="Permanent link">&para;</a></h2>
 <ol>

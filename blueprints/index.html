@@ -422,6 +422,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        graph
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sql" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -738,6 +749,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        graph
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sql" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -812,8 +834,8 @@
 </tr>
 <tr>
 <td><code>graph</code></td>
-<td>planned</td>
-<td>multi-hop and "main themes" questions (GraphRAG)</td>
+<td>stable</td>
+<td>multi-hop questions across documents (GraphRAG local search)</td>
 </tr>
 <tr>
 <td><code>agentic</code></td>
@@ -900,6 +922,38 @@ where many hallucinations come from. <code>corrective</code> checks first:</p>
 <p><code>base: parent_child</code> combines it with parent-child retrieval (set the chunker to
 <code>parent_child</code> too). Run <code>ragpick query --trace</code> to see the grade/rewrite steps. Set
 <code>requirements.strict_grounding: true</code> and the selector recommends it.</p>
+<h2 id="graph">graph<a class="headerlink" href="#graph" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>ingest:  chunk → extract entities &amp; relations (LLM or heuristic) → knowledge graph
+query:   question entities → expand N hops → graph-ranked chunks ─┐
+         hybrid BM25 + vector ────────────────────────────────────┴→ RRF → [facts, chunks…]
+</code></pre></div>
+<p>Some questions need two facts that live in different places ("which error code relates
+to the battery of the thermostat that runs without a C-wire?"). <code>graph</code> links entities
+across chunks, so retrieval can follow those connections, and the LLM gets them
+spelled out:</p>
+<div class="highlight"><pre><span></span><code>Knowledge graph facts:
+- LM-200 → related to → LM-300 Pro (source: getting-started.md#0)
+- E-1042 → related to → AAA (source: error-codes.md#0)
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="nt">blueprint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">graph</span>
+<span class="nt">components</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">retriever</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">hops</span><span class="p">:</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="nt"> extractor</span><span class="p">:</span><span class="w"> </span><span class="nv">auto</span><span class="p p-Indicator">,</span><span class="nt"> graph_weight</span><span class="p">:</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="nt"> include_facts</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> max_facts</span><span class="p">:</span><span class="w"> </span><span class="nv">15</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">generator</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="nv">openai</span><span class="p p-Indicator">,</span><span class="nt"> params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="nv">gpt-4o-mini</span><span class="p p-Indicator">}}</span><span class="w">   </span><span class="c1"># enables LLM extraction</span>
+</code></pre></div>
+<ul>
+<li><strong>Extraction.</strong> With a real LLM (<code>extractor: auto</code> or <code>llm</code>), each chunk is turned into
+  typed entities and labelled relations ("requires", "is covered by") at ingest. That's one
+  LLM call per chunk, so enable the <code>cache</code>. Offline, a heuristic picks up product codes,
+  IDs, acronyms and multi-word names, and relates entities that share a sentence.</li>
+<li><strong>Access control.</strong> Chunks are filtered by <code>allowed_groups</code> as usual, and a fact is
+  included only if at least one chunk <em>visible to the caller</em> supports it.</li>
+<li><strong>Evaluation.</strong> The facts context is marked <code>synthetic</code> and doesn't count in retrieval
+  metrics.</li>
+<li><strong>Scope.</strong> This is GraphRAG <em>local</em> search. Corpus-wide "what are the main themes?"
+  questions (community summaries) are on the roadmap.</li>
+</ul>
+<p>Set <code>requirements.multi_hop: true</code> and the selector recommends it.</p>
 <h2 id="sql">sql<a class="headerlink" href="#sql" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>question + schema → LLM writes one SELECT → SQLite (read-only) → result rows → generator
 </code></pre></div>
@@ -911,7 +965,8 @@ and answers from the real result rows, citing the SQL.</p>
 <span class="nt">components</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">retriever</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">params</span><span class="p">:</span>
-<span class="w">      </span><span class="c1"># database: ./shop.sqlite   # …or query an existing SQLite file (no ingest needed)</span>
+<span class="w">      </span><span class="c1"># database: ./shop.sqlite                     # …or an existing SQLite file</span>
+<span class="w">      </span><span class="c1"># database: ${SHOP_DATABASE_URL}              # …or postgresql://reader:…@host/db</span>
 <span class="w">      </span><span class="nt">table_groups</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">salaries</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">hr</span><span class="p p-Indicator">]}</span>
 <span class="w">      </span><span class="nt">max_rows</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span>
 <span class="w">  </span><span class="nt">generator</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="nv">openai</span><span class="p p-Indicator">,</span><span class="nt"> params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="nv">gpt-4o-mini</span><span class="p p-Indicator">}}</span><span class="w">   </span><span class="c1"># needs a real LLM</span>
@@ -943,6 +998,14 @@ and answers from the real result rows, citing the SQL.</p>
 </tr>
 </tbody>
 </table>
+<p><strong>PostgreSQL</strong> (<code>database: postgresql://…</code>, <code>pip install "psycopg[binary]"</code>): sessions
+are <code>READ ONLY</code> with a <code>statement_timeout</code>; administrative, file and network functions
+(<code>pg_*</code>, <code>lo_*</code>, <code>dblink</code>, <code>set_config</code>, …) are rejected; and before running a query,
+<code>EXPLAIN (FORMAT JSON)</code> lists every table the plan reads, so a hidden table is
+denied even through a view, CTE or subquery. Connect with a role that can only <code>SELECT</code>
+the tables you expose (that's the real boundary), use <code>schemas: [...]</code> to pick
+schemas, and list views over restricted tables in <code>table_groups</code> too, so they don't
+appear in the schema the LLM sees.</p>
 <p>A failed query is retried once with the error message. Denied access is never retried,
 so a model can't probe for hidden tables.</p>
 <p><strong>Access control is table-level.</strong> <code>table_groups: {salaries: [hr]}</code> hides the table from

@@ -762,6 +762,13 @@ application is a plain ASGI app, so you can also mount it in your own server:</p
 <span class="w">  </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer </span><span class="nv">$PORTAL_KEY</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-d<span class="w"> </span><span class="s1">'{"question": "How do I reset my password?"}'</span>
 </code></pre></div>
+<p>Add <code>"stream": true</code> to get <strong>server-sent events</strong> instead of one JSON body: one
+<code>contexts</code> event, many <code>delta</code> events (<code>{"text": "..."}</code>), then a final <code>answer</code> event
+(the same JSON as a normal response). Retrieval errors still return a normal error
+status, because retrieval runs before the stream starts. A provider failure mid-stream
+ends the stream with an <code>error</code> event.</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-N<span class="w"> </span>localhost:8000/query<span class="w"> </span>-d<span class="w"> </span><span class="s1">'{"question": "How do I reset my password?", "stream": true}'</span>
+</code></pre></div>
 <p>Each context is <code>{"id", "doc_id", "score", "source", "text", "metadata"}</code>. Errors are
 <code>{"error": "..."}</code> with a meaningful status: 401/403 auth, 404, 405, 413 body too large,
 422 invalid body, 502 model provider failed, 503 not ingested. Provider and
