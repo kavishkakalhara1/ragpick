@@ -42,6 +42,7 @@ from ragpick.errors import (
     ProviderError,
     RagpickError,
 )
+from ragpick.feedback import AnswerLog, FeedbackError
 from ragpick.models import Answer, RetrievedChunk, StreamEvent
 from ragpick.pipeline import Pipeline
 from ragpick.router import Engine
@@ -77,6 +78,17 @@ class ChatRequest(BaseModel):
     top_k: int | None = Field(None, ge=1, le=50)
     tenant: str | None = Field(None, max_length=64)
     stream: bool = False
+
+
+class FeedbackRequest(BaseModel):
+    """Body of ``POST /feedback``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    answer_id: str = Field(min_length=1, max_length=64)
+    rating: str | int | float | bool
+    comment: str | None = Field(None, max_length=2000)
+    tenant: str | None = Field(None, max_length=64)
 
 
 @dataclass
@@ -124,6 +136,7 @@ def context_json(ctx: RetrievedChunk) -> dict[str, Any]:
 def answer_json(answer: Answer, include_trace: bool) -> dict[str, Any]:
     """Public JSON form of an answer."""
     body: dict[str, Any] = {
+        "id": answer.id,
         "text": answer.text,
         "citations": answer.citations,
         "route": answer.route,
@@ -143,6 +156,20 @@ class App:
         if config is None:
             config = engine.config.serve if isinstance(engine, Pipeline) else engine.serve_config
         self.config = config
+        feedback = (
+            engine.config.feedback
+            if isinstance(engine, Pipeline)
+            else getattr(engine, "feedback_config", None)  # duck-typed engines: disabled
+        )
+        self.answers: AnswerLog | None = None
+        if feedback is not None and feedback.enabled:
+            self.answers = AnswerLog(feedback.answer_log_size)
+
+    def _remember(
+        self, answer: Answer, owner: str, tenant: str | None, groups: list[str] | None
+    ) -> None:
+        if self.answers is not None:
+            self.answers.remember(answer, owner_key(owner, tenant), groups)
 
     # -------------------------------------------------------------- helpers
     def _authenticate(self, headers: dict[str, str]) -> ApiKeySpec | None:
@@ -223,9 +250,11 @@ class App:
             ]
         return Response(200, body)
 
-    def _stream(self, req: QueryRequest, groups: list[str] | None, tenant: str | None) -> Response:
+    def _stream(
+        self, req: QueryRequest, groups: list[str] | None, tenant: str | None, owner: str
+    ) -> Response:
         events = self.engine.stream(
-            req.question, groups=groups, filters=req.filters, top_k=req.top_k
+            req.question, groups=groups, filters=req.filters, top_k=req.top_k, tenant=tenant
         )
         first = next(events)  # runs retrieval now, so its errors get a proper status code
 
@@ -235,6 +264,7 @@ class App:
             if event.type == "delta":
                 return sse("delta", {"text": event.text})
             assert event.answer is not None
+            self._remember(event.answer, owner, tenant, groups)
             return sse("answer", answer_json(event.answer, include_trace=False))
 
         def body() -> Iterator[bytes]:
@@ -257,11 +287,13 @@ class App:
             content_type="text/event-stream",
         )
 
-    def _query(self, req: QueryRequest, groups: list[str] | None, tenant: str | None) -> Response:
+    def _query(
+        self, req: QueryRequest, groups: list[str] | None, tenant: str | None, owner: str
+    ) -> Response:
         if req.stream:
             if req.trace:
                 raise HTTPError(400, "Streaming responses cannot include traces")
-            return self._stream(req, groups, tenant)
+            return self._stream(req, groups, tenant, owner)
         trace = req.trace and self.config.allow_traces
         if req.trace and not self.config.allow_traces:
             raise HTTPError(403, "Traces are disabled on this server (serve.allow_traces)")
@@ -273,6 +305,7 @@ class App:
             trace=trace or None,
             tenant=tenant,
         )
+        self._remember(answer, owner, tenant, groups)
         return Response(200, answer_json(answer, trace))
 
     def _retrieve(
@@ -296,6 +329,7 @@ class App:
         }
         if not req.stream:
             answer = self.engine.chat(req.message, **kwargs)
+            self._remember(answer, owner, tenant, groups)
             body = answer_json(answer, include_trace=False)
             body.update(
                 session_id=answer.session_id, standalone_question=answer.standalone_question
@@ -310,6 +344,7 @@ class App:
             if event.type == "delta":
                 return sse("delta", {"text": event.text})
             assert event.answer is not None
+            self._remember(event.answer, owner, tenant, groups)
             data = answer_json(event.answer, include_trace=False)
             data.update(
                 session_id=event.answer.session_id,
@@ -337,6 +372,16 @@ class App:
             content_type="text/event-stream",
         )
 
+    def _feedback(self, req: FeedbackRequest, key: ApiKeySpec | None, owner: str) -> Response:
+        if self.answers is None:
+            raise HTTPError(404, "Feedback is disabled on this server (feedback.enabled)")
+        tenant = self._tenant(key, req.tenant)
+        answer, groups = self.answers.get(req.answer_id, owner_key(owner, tenant))
+        feedback_id = self.engine.record_feedback(
+            answer, req.rating, comment=req.comment, owner=owner, tenant=tenant, groups=groups
+        )
+        return Response(200, {"id": feedback_id})
+
     def handle(self, method: str, path: str, headers: dict[str, str], body: bytes) -> Response:
         """Dispatch one request. ``headers`` keys must be lowercase."""
         cors = self._cors(headers)
@@ -348,6 +393,9 @@ class App:
             response = Response(exc.status, {"error": exc.message})
         except ConversationError as exc:
             status = 404 if "Unknown session" in str(exc) else 400
+            response = Response(status, {"error": str(exc)})
+        except FeedbackError as exc:
+            status = 404 if "Unknown answer" in str(exc) else 400
             response = Response(status, {"error": str(exc)})
         except IndexNotFoundError as exc:
             response = Response(503, {"error": str(exc)})
@@ -373,7 +421,7 @@ class App:
                 raise HTTPError(405, "Use GET")
             return self._health()
         is_session = path.startswith("/sessions/")
-        if path not in ("/info", "/query", "/retrieve", "/chat") and not is_session:
+        if path not in ("/info", "/query", "/retrieve", "/chat", "/feedback") and not is_session:
             raise HTTPError(404, f"Not found: {path}")
         key = self._authenticate(headers)
         owner = key.name if key is not None else "anonymous"
@@ -396,6 +444,8 @@ class App:
             raise HTTPError(405, "Use POST")
         if len(body) > self.config.max_body_bytes:
             raise HTTPError(413, f"Body exceeds {self.config.max_body_bytes} bytes")
+        if path == "/feedback":
+            return self._feedback(self._parse(body, FeedbackRequest), key, owner)
         if path == "/chat":
             chat_req: ChatRequest = self._parse(body, ChatRequest)
             return self._chat(
@@ -410,7 +460,7 @@ class App:
         if key is not None:
             logger.info("%s %s by %s (groups=%s tenant=%s)", method, path, key.name, groups, tenant)
         if path == "/query":
-            return self._query(req, groups, tenant)
+            return self._query(req, groups, tenant, owner)
         return self._retrieve(req, groups, tenant)
 
 

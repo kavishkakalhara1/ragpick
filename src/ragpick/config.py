@@ -70,6 +70,9 @@ class Requirements(_Strict):
         False, description="Several customers' data must be kept in separate indexes."
     )
     conversational: bool = Field(False, description="Users ask follow-up questions in a chat.")
+    summary_questions: bool = Field(
+        False, description="Users ask for overviews and summaries as well as details."
+    )
     multi_hop: bool = Field(
         False, description="Questions connect facts spread across several documents."
     )
@@ -168,6 +171,15 @@ class ConversationConfig(_Strict):
     ttl_seconds: float | None = Field(None, gt=0, description="Forget idle sessions after this.")
 
 
+class FeedbackConfig(_Strict):
+    """Answer feedback (`POST /feedback`, `record_feedback`, `ragpick feedback`)."""
+
+    enabled: bool = Field(False, description="Accept `POST /feedback` on the HTTP server.")
+    answer_log_size: int = Field(
+        10000, ge=1, description="Recent answers the server keeps so they can be rated."
+    )
+
+
 class TenancyConfig(_Strict):
     """Per-tenant indexes within one pipeline."""
 
@@ -231,6 +243,7 @@ class RagConfig(_Strict):
     conversation: ConversationConfig = Field(
         default_factory=ConversationConfig, description="Chat sessions."
     )
+    feedback: FeedbackConfig = Field(default_factory=FeedbackConfig, description="Answer feedback.")
     index_dir: str = Field(".ragpick/index", description="Where indexes are persisted.")
 
     _base_dir: Path = PrivateAttr(default_factory=Path.cwd)
@@ -298,7 +311,10 @@ class RouterConfig(_Strict):
     conversation: ConversationConfig = Field(
         default_factory=ConversationConfig, description="Chat sessions."
     )
-    sessions_dir: str = Field(".ragpick/router", description="Where `store: sqlite` sessions live.")
+    feedback: FeedbackConfig = Field(default_factory=FeedbackConfig, description="Answer feedback.")
+    sessions_dir: str = Field(
+        ".ragpick/router", description="Where router sessions and feedback are stored."
+    )
 
     _base_dir: Path = PrivateAttr(default_factory=Path.cwd)
 

@@ -6,6 +6,28 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-20
+
+### Added
+
+- `hierarchical` blueprint (stable, RAPTOR-style): chunks are clustered by embedding
+  similarity and summarised recursively (LLM, or extractive offline) into a tree whose
+  summary nodes are indexed next to the chunks; hybrid search runs over both. Trees are
+  built per access scope so summaries never mix restricted and public text; unchanged
+  clusters reuse their summaries. `requirements.summary_questions`.
+- Answer feedback: `Answer.id` and `Answer.question`; `record_feedback()` on pipelines and
+  routers; `POST /feedback` (only for answers the server gave the same API key/tenant);
+  `ragpick feedback stats` and `ragpick feedback export [--as-eval]`, turning liked answers
+  into regression tests and disliked ones into questions to review. `feedback:` config.
+- Hosted rerankers over HTTP (no new dependencies): `cohere` (`COHERE_API_KEY`) and
+  `jina` (`JINA_API_KEY`).
+- `long_context` added to the roadmap as a planned blueprint.
+
+### Fixed
+
+- Streamed `/query` requests ignored the tenant (since 0.6), so multi-tenant servers
+  rejected them with "pass a tenant id".
+
 ## [0.8.0] - 2026-11-20
 
 ### Added
@@ -204,7 +226,8 @@ All notable changes to this project are documented here. The format follows
   relevance, latency percentiles, tokens and estimated cost; JSON/CSV output.
 - CLI: `init`, `recommend`, `blueprints`, `ingest`, `query`, `eval`, `validate`.
 
-[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/kavishkakalhara1/ragpick/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/kavishkakalhara1/ragpick/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/kavishkakalhara1/ragpick/compare/v0.6.0...v0.7.0

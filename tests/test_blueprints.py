@@ -11,9 +11,9 @@ def test_list_blueprints_roadmap_order() -> None:
     names = [bp.name for bp in list_blueprints()]
     stable = [
         "naive", "hybrid", "parent_child", "corrective", "graph", "agentic", "multimodal",
-        "conversational", "sql",
+        "conversational", "hierarchical", "sql",
     ]  # fmt: skip
-    assert names == [*stable, "hierarchical"]
+    assert names == [*stable, "long_context"]
     assert [bp.name for bp in list_blueprints(include_planned=False)] == stable
     assert get_blueprint("sql").metadata.data == "structured"
     assert get_blueprint("corrective").metadata.data == "documents"

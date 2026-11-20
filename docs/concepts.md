@@ -12,8 +12,8 @@ A pipeline is made of small, swappable components. Each one is a `typing.Protoco
 | `embedder` | `embed(texts)`, `dimension` (optional `embed_query`) | `fake`, `openai`, `sentence_transformers`, `langchain`, `llamaindex` |
 | `store` | `add`, `search`, `delete`, `persist`, `load` | `memory`, `qdrant`, `pgvector`, `chroma`, `lancedb` |
 | `keyword_index` | `add`, `search`, `persist`, `load` | `bm25` |
-| `retriever` | `retrieve(query, k, filters)` | `vector`, `keyword`, `hybrid`, `parent_child`, `corrective`, `graph`, `agentic`, `sql`, `langchain`, `llamaindex` |
-| `reranker` | `rerank(query, chunks, top_n)` | `none`, `cross_encoder` |
+| `retriever` | `retrieve(query, k, filters)` | `vector`, `keyword`, `hybrid`, `parent_child`, `corrective`, `graph`, `agentic`, `hierarchical`, `sql`, `langchain`, `llamaindex` |
+| `reranker` | `rerank(query, chunks, top_n)` | `none`, `cross_encoder`, `cohere`, `jina` |
 | `generator` | `generate(query, contexts) -> Answer` (optional `stream`) | `fake`, `openai`, `ollama`, `langchain`, `llamaindex` |
 
 Data flows through these models: `Document` → `Chunk` → `RetrievedChunk` → `Answer`
@@ -68,6 +68,7 @@ merged result with `ragpick validate`.
 
 | Situation | Effect |
 |---|---|
+| `summary_questions` (overviews and details) | `hierarchical` |
 | `multi_hop` (facts spread across documents) | `graph` |
 | `complex_questions` (multi-part, comparisons) | `agentic` |
 | `conversational` (follow-up questions) | `conversational` (chat works with every blueprint) |

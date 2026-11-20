@@ -1,11 +1,27 @@
 metadata:
   name: hierarchical
   description: >-
-    RAPTOR-style retrieval: cluster chunks and summarise them recursively into a
-    tree, then retrieve across levels so both details and high-level answers are
-    covered.
+    RAPTOR-style retrieval: chunks are clustered and summarised recursively into a
+    tree at ingest; hybrid search runs over chunks and summaries together, so both
+    detail and big-picture questions find the right level.
   best_for:
-    - long reports and books where questions range from details to overall themes
+    - long reports, handbooks and books where questions range from details to overall themes
+    - questions whose answer is spread over several neighbouring passages
   tradeoffs:
-    - expensive recursive summarisation at ingest
-  status: planned
+    - one summary LLM call per cluster at ingest (cached and reused when unchanged)
+    - summaries compete with chunks for the top-k slots
+  status: stable
+defaults:
+  components:
+    loader: {type: directory, params: {glob: "**/*"}}
+    chunker: {type: recursive, params: {chunk_size: 600, overlap: 80}}
+    embedder: {type: fake, params: {dimension: 256}}
+    store: {type: memory}
+    keyword_index: {type: bm25, params: {k1: 1.5, b: 0.75}}
+    retriever:
+      type: hierarchical
+      params: {k: 10, cluster_size: 6, max_levels: 3, summarizer: auto}
+    reranker: {type: none}
+    generator: {type: fake}
+  query:
+    top_k: 5

@@ -32,6 +32,7 @@ nav:
   - Serving: serving.md
   - Multi-tenancy: tenancy.md
   - Conversations: conversations.md
+  - Feedback: feedback.md
   - Tracing & caching: operations.md
   - LangChain & LlamaIndex: adapters.md
   - Design decisions: decisions.md

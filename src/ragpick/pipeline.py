@@ -20,6 +20,7 @@ from ragpick.components.generators import parse_citations
 from ragpick.config import ComponentSpec, RagConfig, TenancyConfig, build_config, load_config
 from ragpick.conversation import ConversationManager, make_store, owner_key
 from ragpick.errors import ConfigError, IndexNotFoundError, TenantError
+from ragpick.feedback import FeedbackStore, record_from_answer
 from ragpick.filters import acl_filter
 from ragpick.models import Answer, RetrievedChunk, StreamEvent, Usage
 from ragpick.registry import Registry, registry
@@ -107,6 +108,7 @@ class Pipeline:
         self._loaded = False
         self._tenants: OrderedDict[str, Pipeline] = OrderedDict()
         self._conversations: ConversationManager | None = None
+        self._feedback: FeedbackStore | None = None
         self._tenant_lock = threading.Lock()
         c = config.components
         self.cache: Cache | None = None
@@ -294,6 +296,34 @@ class Pipeline:
             top_k=top_k,
             tenant=tenant,
         )
+
+    # ------------------------------------------------------------------ feedback
+    @property
+    def feedback_store(self) -> FeedbackStore:
+        """Ratings storage at ``<index_dir>/feedback.sqlite`` (created on first use)."""
+        if self._feedback is None:
+            self._feedback = FeedbackStore(self.index_dir / "feedback.sqlite")
+        return self._feedback
+
+    def record_feedback(
+        self,
+        answer: Answer,
+        rating: str | int | float | bool,
+        *,
+        comment: str | None = None,
+        owner: str | None = None,
+        tenant: str | None = None,
+        groups: list[str] | None = None,
+    ) -> str:
+        """Store a rating (``"up"``/``"down"``, ``True``/``False`` or 1-5) for ``answer``.
+
+        Returns the feedback id. See :mod:`ragpick.feedback`.
+        """
+        record = record_from_answer(
+            answer, rating, comment=comment, owner=owner, tenant=tenant, groups=groups
+        )
+        record.route = record.route or self.config.blueprint
+        return self.feedback_store.add(record)
 
     # ------------------------------------------------------------------ tenancy
     def for_tenant(self, tenant: str) -> Pipeline:
@@ -577,7 +607,11 @@ class Pipeline:
         text = "".join(parts).strip()
         usage = usage.model_copy(update={"latency_ms": (time.perf_counter() - start) * 1000})
         final = Answer(
-            text=text, citations=parse_citations(text, contexts), contexts=contexts, usage=usage
+            text=text,
+            citations=parse_citations(text, contexts),
+            contexts=contexts,
+            usage=usage,
+            question=question,
         )
         yield StreamEvent(type="answer", answer=final)
 
@@ -600,4 +634,5 @@ class Pipeline:
                     citations=len(answer.citations),
                 )
         answer.usage.latency_ms = (time.perf_counter() - start) * 1000
+        answer.question = question
         return answer

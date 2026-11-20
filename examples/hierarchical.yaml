@@ -1,0 +1,16 @@
+# Offline example: hierarchical (RAPTOR-style) retrieval.
+# With a real LLM generator, cluster summaries are written by the LLM (summarizer: auto).
+#   ragpick ingest -c examples/hierarchical.yaml
+#   ragpick query "Give me an overview of setup, billing and warranty" -c examples/hierarchical.yaml --show-contexts
+version: 1
+name: hierarchical
+blueprint: hierarchical
+data: data
+index_dir: .ragpick/hierarchical
+requirements:
+  summary_questions: true
+components:
+  retriever:
+    params: {cluster_size: 4, max_levels: 3}
+feedback:
+  enabled: true

@@ -26,6 +26,7 @@ Top-level schema of ``rag.yaml``.
 | `serve` | ServeConfig | see section | HTTP API settings. |
 | `tenancy` | TenancyConfig | see section | Multi-tenancy. |
 | `conversation` | ConversationConfig | see section | Chat sessions. |
+| `feedback` | FeedbackConfig | see section | Answer feedback. |
 | `index_dir` | str | `'.ragpick/index'` | Where indexes are persisted. |
 
 ## `requirements`
@@ -41,6 +42,7 @@ What the application needs. Used by the selector (`ragpick recommend`).
 | `complex_questions` | bool | `False` | Questions need several lookups (comparisons, multi-part questions). |
 | `multi_tenant` | bool | `False` | Several customers' data must be kept in separate indexes. |
 | `conversational` | bool | `False` | Users ask follow-up questions in a chat. |
+| `summary_questions` | bool | `False` | Users ask for overviews and summaries as well as details. |
 | `multi_hop` | bool | `False` | Questions connect facts spread across several documents. |
 | `strict_grounding` | bool | `False` | Wrong answers are costly: prefer "I don't know" over guessing. |
 | `latency` | `low` \| `normal` | `'normal'` | `low` disables expensive stages. |
@@ -154,6 +156,15 @@ Chat sessions (`chat()`, `ragpick chat`, `POST /chat`).
 | `max_sessions` | int | `1000` | Sessions kept by the memory store (LRU). |
 | `ttl_seconds` | float \| null | `None` | Forget idle sessions after this. |
 
+## `feedback`
+
+Answer feedback (`POST /feedback`, `record_feedback`, `ragpick feedback`).
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | `False` | Accept `POST /feedback` on the HTTP server. |
+| `answer_log_size` | int | `10000` | Recent answers the server keeps so they can be rated. |
+
 ## API key (each entry of `serve.api_keys`)
 
 An API key for `ragpick serve` and the groups its holder may act as.
@@ -178,7 +189,8 @@ A config that routes each question to one of several pipelines.
 | `tracing` | TracingConfig | see section | Query tracing. |
 | `serve` | ServeConfig | see section | HTTP API settings. |
 | `conversation` | ConversationConfig | see section | Chat sessions. |
-| `sessions_dir` | str | `'.ragpick/router'` | Where `store: sqlite` sessions live. |
+| `feedback` | FeedbackConfig | see section | Answer feedback. |
+| `sessions_dir` | str | `'.ragpick/router'` | Where router sessions and feedback are stored. |
 
 ## `router`
 

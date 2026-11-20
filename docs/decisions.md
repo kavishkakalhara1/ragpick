@@ -262,6 +262,24 @@ interfaces extensible. Each decision is listed here so it can be revisited.
 84. **LanceDB filters use a `tags` list column** (`key=value`) and `array_has_any`, with
     every value quoted and escaped, and run as a pre-filter before vector ranking.
 
+## v0.9
+
+85. **RAPTOR uses the "collapsed tree"**: summary nodes live in the same vector store and
+    keyword index as chunks, so any retriever, reranker and filter applies unchanged.
+86. **Clustering is greedy nearest-neighbour** (deterministic, numpy, no new
+    dependency) rather than GMM/UMAP as in the RAPTOR paper.
+87. **Trees are built per access scope**, so summaries inherit exactly one
+    `allowed_groups` set and access control is enforced by the normal filters.
+88. **Summaries are cached by a signature** of their members, persisted with the tree;
+    re-ingest rebuilds structure but only re-summarises changed clusters.
+89. **Answers carry an `id`**; the server rates only answers it remembers giving to the
+    same (API key, tenant), and builds the feedback record from its own copy, so clients
+    can't inject questions/answers or rate others' answers.
+90. **Feedback becomes evaluation data**: liked answers with cited documents become
+    regression tests; disliked ones become unanswered questions to review.
+91. **Hosted rerankers use `httpx` directly**, with the same `{index, relevance_score}`
+    result shape for Cohere and Jina, and keep each chunk's original `source`.
+
 ## Tooling
 
 31. **`types-PyYAML` is not a dev dependency** (it wasn't in the approved list), so mypy

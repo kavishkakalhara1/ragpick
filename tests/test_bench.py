@@ -87,6 +87,7 @@ def test_run_bench_offline() -> None:
         "agentic",
         "multimodal",
         "conversational",
+        "hierarchical",
     }  # no sql
     assert result.winner == result.ranking[0]
     assert result.metric == "mrr"
@@ -130,7 +131,7 @@ def test_run_bench_validation() -> None:
     with pytest.raises(ConfigError, match="Unknown metric"):
         run_bench(DATASET, DATA, metric="vibes")
     with pytest.raises(BlueprintError, match="planned"):
-        run_bench(DATASET, DATA, blueprints=["hierarchical"])
+        run_bench(DATASET, DATA, blueprints=["long_context"])
 
 
 runner = CliRunner()

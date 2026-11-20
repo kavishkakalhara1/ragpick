@@ -66,8 +66,8 @@ Preview the docs with `mkdocs serve`.
 ## Good first issues
 
 - **Loaders**: HTML, DOCX, Notion/Confluence exports, CSV-as-documents.
-- **Blueprints**: `hierarchical` (RAPTOR) is next; better community detection (Leiden)
-  for `graph`.
+- **Blueprints**: `long_context` is next; better community detection (Leiden) for `graph`.
+- **Rerankers**: Voyage, Mixedbread, LLM-as-reranker.
 - **Stores**: Elasticsearch/OpenSearch, Weaviate, Milvus (with filter push-down).
 - **Multimodal**: CLIP-style image embeddings, OCR for scanned PDFs.
 - **SQL**: MySQL/DuckDB backends for the `sql` retriever (same `SQLBackend` protocol).

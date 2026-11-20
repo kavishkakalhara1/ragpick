@@ -1,0 +1,11 @@
+metadata:
+  name: long_context
+  description: >-
+    For small corpora and long-context models: skip chunk retrieval and pass whole
+    documents (selected by a cheap document-level search) to the model, with prompt
+    caching to keep repeated questions affordable.
+  best_for:
+    - small, stable corpora (a few hundred pages) with long-context LLMs
+  tradeoffs:
+    - higher per-query token cost without prompt caching
+  status: planned

@@ -133,7 +133,8 @@ allowed_groups: [support]
 | `agentic` | ✅ stable | multi-part and comparison questions: plans several searches, fuses the results |
 | `multimodal` | ✅ stable | images, diagrams and scanned pages: described at ingest (vision LLM or offline), searched with the text |
 | `conversational` | ✅ stable | chat assistants: follow-ups rewritten with the session history, persistent sessions |
-| `hierarchical` | 🗺 planned | RAPTOR-style summary trees: details and big-picture answers |
+| `hierarchical` | ✅ stable | RAPTOR-style summary tree: details and big-picture answers from one index |
+| `long_context` | 🗺 planned | small corpora + long-context models: whole documents instead of chunks |
 | `corrective` | ✅ stable | grades retrieval, retries, and says "I don't know" instead of guessing |
 
 ## CLI
@@ -152,6 +153,7 @@ allowed_groups: [support]
 | `ragpick cache stats` / `clear` | inspect or clear the embedding/LLM cache |
 | `ragpick serve` | JSON HTTP API with API keys mapped to groups |
 | `ragpick chat` | interactive chat; follow-up questions use the conversation |
+| `ragpick feedback stats` / `export` | user ratings: worst questions, export as eval data |
 
 ## Optional extras
 
@@ -159,7 +161,7 @@ allowed_groups: [support]
 |---|---|
 | `openai` | OpenAI embeddings and chat models (and OpenAI-compatible servers) |
 | `local` | sentence-transformers embeddings |
-| `rerank` | cross-encoder reranker |
+| `rerank` | cross-encoder reranker (Cohere and Jina rerankers need no extra) |
 | `qdrant` | Qdrant vector store (pgvector, Chroma and LanceDB work with `psycopg[binary]`, `chromadb`, `lancedb`) |
 | `pdf` | PDF loader |
 | `all` | everything above |
@@ -194,6 +196,9 @@ or `POST /query {"stream": true}` (server-sent events).
 
 Building a chat assistant? `pipeline.chat(message, session_id=...)` rewrites follow-ups
 ("and can I cancel it?") into standalone questions; see [docs/conversations.md](docs/conversations.md).
+
+Collect thumbs-up/down with `record_feedback()` or `POST /feedback`, then turn them into
+regression tests with `ragpick feedback export --as-eval`; see [docs/feedback.md](docs/feedback.md).
 
 Serving many customers? `tenancy: {enabled: true}` gives every tenant an isolated
 index, and API keys can be bound to a tenant. See [docs/tenancy.md](docs/tenancy.md).
@@ -246,7 +251,7 @@ See [docs/adapters.md](docs/adapters.md).
 [Concepts](docs/concepts.md) · [Blueprints](docs/blueprints.md) ·
 [Config reference](docs/config-reference.md) · [Writing a plugin](docs/plugins.md) ·
 [Evaluation](docs/evaluation.md) · [Routing](docs/routing.md) · [Serving](docs/serving.md) ·
-[Multi-tenancy](docs/tenancy.md) · [Conversations](docs/conversations.md) ·
+[Multi-tenancy](docs/tenancy.md) · [Conversations](docs/conversations.md) · [Feedback](docs/feedback.md) ·
 [Tracing & caching](docs/operations.md) ·
 [LangChain & LlamaIndex](docs/adapters.md) ·
 [Design decisions](docs/decisions.md)
@@ -265,8 +270,9 @@ See [docs/adapters.md](docs/adapters.md).
   your documents
 - **v0.8** ✅: `conversational` blueprint (chat history, follow-up rewriting), Chroma and
   LanceDB stores, CI-friendly `ragpick eval --fail-under`
-- **v0.9**: `hierarchical` (RAPTOR) blueprint, answer feedback collection, reranker
+- **v0.9** ✅: `hierarchical` (RAPTOR) blueprint, answer feedback collection, reranker
   plugins (Cohere, Jina)
+- **v1.0**: `long_context` blueprint, API stability guarantees, upgrade guide
 - **Later**: TypeScript SDK
 
 ## Contributing

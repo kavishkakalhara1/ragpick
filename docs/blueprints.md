@@ -12,7 +12,8 @@ Run `ragpick blueprints` to see this list in your terminal.
 | `agentic` | stable | multi-part and comparison questions needing several lookups |
 | `multimodal` | stable | images, diagrams, scans and charts inside documents |
 | `conversational` | stable | chat assistants with follow-up questions |
-| `hierarchical` | planned | RAPTOR-style summary trees |
+| `hierarchical` | stable | RAPTOR-style summary trees: details and overviews |
+| `long_context` | planned | small corpora with long-context models |
 | `corrective` | stable | noisy corpora, high-stakes answers: grade retrieval, retry, or refuse |
 
 ## naive
@@ -235,6 +236,39 @@ and the selector recommends it.
 `hybrid` retrieval plus chat sessions stored in SQLite. Each follow-up is rewritten into a
 standalone question before retrieval. `chat()` works with every blueprint; this one just
 sets good defaults. See [Conversations](conversations.md).
+
+## hierarchical
+
+```text
+ingest: chunks → cluster by embedding → summarise each cluster → cluster the summaries → …
+        (summary nodes are indexed next to the chunks)
+query:  hybrid search over chunks + summaries ("collapsed tree")
+```
+
+Chunk search answers detail questions well and overview questions badly ("what does the
+warranty cover overall?" needs several chunks at once). RAPTOR-style trees add summary
+nodes at increasing levels of abstraction, and searching them together with the chunks
+lets each question find its natural level.
+
+```yaml
+blueprint: hierarchical
+components:
+  retriever:
+    params: {cluster_size: 6, max_levels: 3, summarizer: auto}
+  generator: {type: openai, params: {model: gpt-4o-mini}}   # LLM-written summaries
+cache: {enabled: true}
+```
+
+- Clustering is deterministic (each seed takes its nearest unassigned neighbours).
+  Offline summaries are extractive (the first informative sentence of each member).
+- **Access control:** a tree is built per access scope (public, and each distinct
+  `allowed_groups` set), and summary nodes carry that scope's `allowed_groups`. A summary
+  never mixes restricted and public text.
+- Re-ingest rebuilds the tree; clusters whose members are unchanged reuse their summary.
+- Summary nodes are `synthetic` (excluded from retrieval metrics) and record their
+  `children` and `source_docs`.
+
+Set `requirements.summary_questions: true` and the selector recommends it.
 
 ## sql
 

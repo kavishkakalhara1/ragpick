@@ -183,6 +183,7 @@ def _ask_requirements() -> Requirements:
     complex_q = _confirm("Are questions often multi-part or comparisons (A vs B)?", False)
     tenants = _confirm("Must several customers' data be kept separate (multi-tenant)?", False)
     chatty = _confirm("Will users ask follow-up questions in a chat?", False)
+    overviews = _confirm("Do users ask for overviews/summaries as well as details?", False)
     strict = _confirm('Is a wrong answer worse than "I don\'t know"?', False)
     latency = _ask("Latency requirement", "normal", ["low", "normal"])
     citations = _confirm("Must answers cite their sources?", True)
@@ -197,6 +198,7 @@ def _ask_requirements() -> Requirements:
             "complex_questions": complex_q,
             "multi_tenant": tenants,
             "conversational": chatty,
+            "summary_questions": overviews,
             "strict_grounding": strict,
             "latency": latency,
             "needs_citations": citations,
@@ -906,6 +908,63 @@ def cache_clear(config: ConfigOpt = DEFAULT_CONFIG) -> None:
     finally:
         cache.close()
     console.print(f"[green]✓[/] Removed {removed} cache entries")
+
+
+# --------------------------------------------------------------------------- feedback
+feedback_app = typer.Typer(help="Inspect and export answer feedback.", no_args_is_help=True)
+app.add_typer(feedback_app, name="feedback")
+
+
+@feedback_app.command("stats")
+@friendly
+def feedback_stats(config: ConfigOpt = DEFAULT_CONFIG) -> None:
+    """Show satisfaction, per-route scores and the worst-rated questions."""
+    stats = load_engine(config).feedback_store.stats()
+    if not stats["total"]:
+        console.print("[dim]No feedback yet.[/]")
+        return
+    average = stats["average"] or 0.0
+    console.print(
+        f"[bold]{stats['total']}[/] ratings · [green]{stats['positive']} positive[/] · "
+        f"[red]{stats['negative']} negative[/] · average {average:.2f}"
+    )
+    if len(stats["routes"]) > 1:
+        routes = Table(title="By route / blueprint")
+        routes.add_column("Route")
+        routes.add_column("Ratings", justify="right")
+        routes.add_column("Average", justify="right")
+        for name, row in stats["routes"].items():
+            routes.add_row(escape(name), str(row["count"]), f"{row['average']:.2f}")
+        console.print(routes)
+    if stats["worst_questions"]:
+        worst = Table(title="Worst-rated questions")
+        worst.add_column("Question")
+        worst.add_column("Average", justify="right")
+        worst.add_column("Ratings", justify="right")
+        for row in stats["worst_questions"]:
+            worst.add_row(Text(row["question"]), f"{row['average']:.2f}", str(row["count"]))
+        console.print(worst)
+
+
+@feedback_app.command("export")
+@friendly
+def feedback_export(
+    config: ConfigOpt = DEFAULT_CONFIG,
+    output: Annotated[Path, typer.Option("--output", "-o", help="JSONL file to write.")] = Path(
+        "feedback.jsonl"
+    ),
+    as_eval: Annotated[
+        bool,
+        typer.Option("--as-eval", help="Write an eval dataset: liked → tests, disliked → review."),
+    ] = False,
+) -> None:
+    """Export feedback as JSONL (all records, or as an evaluation dataset)."""
+    from ragpick.feedback import export_jsonl
+
+    store = load_engine(config).feedback_store
+    rows = store.export_eval() if as_eval else [r.model_dump() for r in store.all()]
+    written = export_jsonl(rows, output)
+    console.print(f"[green]✓[/] Wrote {len(rows)} rows to {written}")
 
 
 def main() -> None:

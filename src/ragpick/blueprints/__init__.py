@@ -54,8 +54,9 @@ _ORDER = [
     "agentic",
     "multimodal",
     "conversational",
-    "sql",
     "hierarchical",
+    "sql",
+    "long_context",
 ]
 
 

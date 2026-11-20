@@ -210,6 +210,17 @@ RULES: list[Rule] = [
         ),
     ),
     Rule(
+        id="summary_questions",
+        when=lambda c: _r(c).summary_questions,
+        blueprint="hierarchical",
+        priority=61,
+        reason=(
+            "Overview and detail questions: a RAPTOR-style summary tree is indexed next to "
+            "the chunks, so broad questions match summaries and specific ones match chunks."
+        ),
+        alternatives=("graph", "parent_child"),
+    ),
+    Rule(
         id="long_documents",
         when=lambda c: _r(c).long_documents,
         blueprint="parent_child",

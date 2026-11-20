@@ -42,6 +42,7 @@ from ragpick.components.keyword import tokenize
 from ragpick.config import (
     ConversationConfig,
     EvalConfig,
+    FeedbackConfig,
     RouterConfig,
     ServeConfig,
     TracingConfig,
@@ -52,6 +53,7 @@ from ragpick.config import (
 )
 from ragpick.conversation import ConversationManager, make_store, owner_key
 from ragpick.errors import ConfigError
+from ragpick.feedback import FeedbackStore, record_from_answer
 from ragpick.interfaces import TextCompleter
 from ragpick.models import Answer, RetrievedChunk, StreamEvent
 from ragpick.pipeline import IngestStats, Pipeline, ProgressCallback
@@ -121,6 +123,7 @@ class Router:
         exporters: Sequence[Any] = (),
         conversation_config: ConversationConfig | None = None,
         sessions_dir: Path | None = None,
+        feedback_config: FeedbackConfig | None = None,
     ) -> None:
         if not routes:
             raise ConfigError("A router needs at least one route")
@@ -157,6 +160,8 @@ class Router:
         self.conversation_config = conversation_config or ConversationConfig()
         self.sessions_dir = sessions_dir or Path(".ragpick/router")
         self._conversations: ConversationManager | None = None
+        self._feedback: FeedbackStore | None = None
+        self.feedback_config = feedback_config or FeedbackConfig()
 
     # ------------------------------------------------------------------ building
     @classmethod
@@ -204,6 +209,7 @@ class Router:
             exporters=exporters,
             conversation_config=config.conversation,
             sessions_dir=config.resolve_path(config.sessions_dir),
+            feedback_config=config.feedback,
         )
 
     # ------------------------------------------------------------------ summary (eval/serve)
@@ -417,6 +423,31 @@ class Router:
             filters=filters,
             top_k=top_k,
             tenant=tenant,
+        )
+
+    # ------------------------------------------------------------------ feedback
+    @property
+    def feedback_store(self) -> FeedbackStore:
+        """Ratings storage at ``<sessions_dir>/feedback.sqlite``."""
+        if self._feedback is None:
+            self._feedback = FeedbackStore(self.sessions_dir / "feedback.sqlite")
+        return self._feedback
+
+    def record_feedback(
+        self,
+        answer: Answer,
+        rating: str | int | float | bool,
+        *,
+        comment: str | None = None,
+        owner: str | None = None,
+        tenant: str | None = None,
+        groups: list[str] | None = None,
+    ) -> str:
+        """Store a rating for ``answer`` (its ``route`` is recorded too)."""
+        return self.feedback_store.add(
+            record_from_answer(
+                answer, rating, comment=comment, owner=owner, tenant=tenant, groups=groups
+            )
         )
 
     # ------------------------------------------------------------------ ingest

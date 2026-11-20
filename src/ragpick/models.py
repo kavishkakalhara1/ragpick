@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -67,6 +68,8 @@ class Answer(BaseModel):
     citations: list[str] = Field(default_factory=list)
     contexts: list[RetrievedChunk] = Field(default_factory=list)
     usage: Usage = Field(default_factory=Usage)
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex)
+    question: str | None = None
     route: str | None = None
     session_id: str | None = None
     standalone_question: str | None = None
